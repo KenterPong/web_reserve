@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# env（勿提交金鑰）
+.env
+.env*.local
+
+# 本機／工具產物
+.DS_Store
+*.tsbuildinfo
+*.log
+npm-debug.log*
+.vercel
+
+# 切勿將密鑰筆記放進版本庫（若曾存在請刪除並輪替金鑰）
+supabase/set.txt
+**/secrets*.txt
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 誤放在根目錄的備份／暫存（勿提交）
+/claude.ts
+/page.tsx
+/route.ts
+/files.zip
+/mnt/
+.claude/
