@@ -11,6 +11,7 @@ function extractSlug(host: string): string | null {
 
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') ?? ''
+  const hostname = host.split(':')[0].toLowerCase()
   const { pathname } = req.nextUrl
 
   // Protect /dashboard pages — API routes validate their own cookies
@@ -19,6 +20,12 @@ export function middleware(req: NextRequest) {
     if (!workerId) {
       return NextResponse.redirect(new URL('/auth/login', req.url))
     }
+  }
+
+  // Vercel 預設網域（*.vercel.app）的第一段是專案／部署 id，不是工作者 slug；
+  // 若當成 slug 會 rewrite 到不存在的 profile → 404。
+  if (hostname.endsWith('.vercel.app')) {
+    return NextResponse.next()
   }
 
   const slug = extractSlug(host)
