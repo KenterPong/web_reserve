@@ -16,11 +16,13 @@ export async function POST(req: NextRequest) {
     if (!supabaseUrl) {
       return NextResponse.json({ error: '缺少後端設定：NEXT_PUBLIC_SUPABASE_URL' }, { status: 500 })
     }
-    if (!serviceRoleKey || !serviceRoleKey.startsWith('sb_secret_')) {
+    const srk = serviceRoleKey?.trim() ?? ''
+    const srkOk = srk.startsWith('sb_secret_') || srk.startsWith('eyJ')
+    if (!srkOk) {
       return NextResponse.json({ error: '缺少後端設定：SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    const supabaseAdmin = createClient(supabaseUrl, srk, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
