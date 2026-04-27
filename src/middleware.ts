@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Returns the worker slug if the host is a subdomain (not www)
+const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? '').toLowerCase()
+
+// Returns the worker slug if the host is a worker subdomain (not www).
+// If NEXT_PUBLIC_ROOT_DOMAIN is set, only treat *.ROOT_DOMAIN as valid worker subdomains.
 function extractSlug(host: string): string | null {
-  const hostname = host.split(':')[0]
+  const hostname = host.split(':')[0].toLowerCase()
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return null
+  if (hostname.startsWith('www.')) return null
+
   const parts = hostname.split('.')
   if (parts.length < 2) return null
-  if (parts[0] === 'www') return null
+
+  if (ROOT_DOMAIN) {
+    if (hostname === ROOT_DOMAIN) return null
+    if (!hostname.endsWith(`.${ROOT_DOMAIN}`)) return null
+  }
+
   return parts[0]
 }
 

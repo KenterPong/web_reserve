@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { WorkingHours } from '@/types'
 
@@ -10,6 +11,17 @@ export default async function WorkerProfilePage({ searchParams }: Props) {
   const slug = searchParams.slug
 
   if (!slug) notFound()
+
+  const host = (await headers()).get('host') ?? ''
+  const hostname = host.split(':')[0].toLowerCase()
+  const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? '').toLowerCase()
+  const isWorkerSubdomain =
+    !!hostname &&
+    hostname !== 'localhost' &&
+    hostname !== '127.0.0.1' &&
+    !hostname.startsWith('www.') &&
+    !hostname.endsWith('.vercel.app') &&
+    (!rootDomain || (hostname !== rootDomain && hostname.endsWith(`.${rootDomain}`)))
 
   const { data: worker } = await supabaseAdmin
     .from('workers')
@@ -24,10 +36,7 @@ export default async function WorkerProfilePage({ searchParams }: Props) {
 
   const workingHours = worker.working_hours as unknown as WorkingHours
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
-  const bookingUrl = appUrl
-    ? appUrl.replace('www.', `${slug}.`) + '/booking'
-    : `/booking?slug=${slug}`
+  const bookingUrl = isWorkerSubdomain ? '/booking' : `/booking?slug=${slug}`
 
   const dayNames: Record<string, string> = {
     mon: '週一', tue: '週二', wed: '週三',
