@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Appointment } from '@/types'
-import QRCode from 'qrcode.react'
+import { QRCodeCanvas } from 'qrcode.react'
 
 const STATUS_LABEL: Record<string, string> = {
   confirmed: '已確認',
@@ -189,7 +189,7 @@ export default function AppointmentsPage() {
               <div className="rounded-xl border border-gray-100 p-4 flex flex-col items-center">
                 <p className="text-xs text-gray-500 mb-3">或讓客戶掃描 QR Code</p>
                 <div className={`bg-white p-3 rounded-xl ${shareUrl ? '' : 'opacity-40'}`}>
-                  <QRCode value={shareUrl || 'https://example.com'} size={192} />
+                  <QRCodeCanvas value={shareUrl || 'https://example.com'} size={192} />
                 </div>
                 <p className="text-[11px] text-gray-400 mt-3 text-center">
                   客戶掃描後會直接開啟你的子網域預約頁
