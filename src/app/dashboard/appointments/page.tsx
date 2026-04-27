@@ -21,9 +21,13 @@ const STATUS_COLOR: Record<string, string> = {
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [workerId, setWorkerId] = useState<string>('')
   const [mySlug, setMySlug] = useState<string>('')
   const [shareOpen, setShareOpen] = useState(false)
   const [copyMsg, setCopyMsg] = useState('')
+  const [notifyOpen, setNotifyOpen] = useState(false)
+  const [lastSeenAt, setLastSeenAt] = useState<number>(0)
+  const [readKeys, setReadKeys] = useState<Record<string, true>>({})
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date()
     const y = now.getFullYear()
@@ -38,12 +42,25 @@ export default function AppointmentsPage() {
     return `${y}-${m}`
   })
 
-  useEffect(() => { fetchAppointments() }, [currentMonth])
+  useEffect(() => { fetchAppointments({ silent: false }) }, [currentMonth])
+
+  // Poll for changes to avoid manual refresh
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      fetchAppointments({ silent: true })
+    }, 15000)
+    return () => window.clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonth])
 
   useEffect(() => {
     fetch('/api/workers/me')
       .then(res => (res.ok ? res.json() : null))
-      .then(data => setMySlug(data?.worker?.slug ?? ''))
+      .then(data => {
+        const w = data?.worker
+        setMySlug(w?.slug ?? '')
+        setWorkerId(w?.id ?? '')
+      })
       .catch(() => {})
   }, [])
 
@@ -53,8 +70,38 @@ export default function AppointmentsPage() {
     return () => window.clearTimeout(t)
   }, [copyMsg])
 
-  async function fetchAppointments() {
-    setIsLoading(true)
+  // Notifications state persisted in localStorage
+  useEffect(() => {
+    if (!workerId) return
+    const seenKey = `notifications:lastSeenAt:${workerId}`
+    const readKey = `notifications:readKeys:${workerId}`
+    const savedSeen = Number(localStorage.getItem(seenKey) ?? 0)
+    const savedRead = localStorage.getItem(readKey)
+
+    const initialSeen = Number.isFinite(savedSeen) && savedSeen > 0 ? savedSeen : Date.now()
+    setLastSeenAt(initialSeen)
+    localStorage.setItem(seenKey, String(initialSeen))
+
+    try {
+      const parsed = savedRead ? (JSON.parse(savedRead) as Record<string, true>) : {}
+      setReadKeys(parsed && typeof parsed === 'object' ? parsed : {})
+    } catch {
+      setReadKeys({})
+    }
+  }, [workerId])
+
+  useEffect(() => {
+    if (!workerId) return
+    localStorage.setItem(`notifications:lastSeenAt:${workerId}`, String(lastSeenAt || Date.now()))
+  }, [workerId, lastSeenAt])
+
+  useEffect(() => {
+    if (!workerId) return
+    localStorage.setItem(`notifications:readKeys:${workerId}`, JSON.stringify(readKeys))
+  }, [workerId, readKeys])
+
+  async function fetchAppointments(opts: { silent: boolean }) {
+    if (!opts.silent) setIsLoading(true)
     try {
       const res = await fetch(`/api/appointments?month=${currentMonth}`)
       if (res.status === 401) { window.location.href = '/auth/login'; return }
@@ -63,7 +110,7 @@ export default function AppointmentsPage() {
     } catch {
       // ignore
     } finally {
-      setIsLoading(false)
+      if (!opts.silent) setIsLoading(false)
     }
   }
 
@@ -73,7 +120,7 @@ export default function AppointmentsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
-    fetchAppointments()
+    fetchAppointments({ silent: true })
   }
 
   function getDaysInMonth() {
@@ -126,6 +173,30 @@ export default function AppointmentsPage() {
     }
   }
 
+  function appointmentEventAtMs(a: Appointment): number {
+    const t = Date.parse(a.updated_at || a.created_at)
+    return Number.isFinite(t) ? t : 0
+  }
+
+  const notificationCandidates = lastSeenAt
+    ? appointments.filter((a) => appointmentEventAtMs(a) > lastSeenAt)
+    : []
+
+  const unreadNotifications = notificationCandidates
+    .filter((a) => !readKeys[`${a.id}:${a.updated_at}`])
+    .sort((a, b) => appointmentEventAtMs(b) - appointmentEventAtMs(a))
+
+  function markAllRead() {
+    setReadKeys({})
+    setLastSeenAt(Date.now())
+    setNotifyOpen(false)
+  }
+
+  function markOneRead(a: Appointment) {
+    const k = `${a.id}:${a.updated_at}`
+    setReadKeys((prev) => ({ ...prev, [k]: true }))
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -135,6 +206,70 @@ export default function AppointmentsPage() {
           <p className="text-xs text-gray-400">點選日期查看預約</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setNotifyOpen((v) => !v)}
+              className="relative text-sm text-green-600 hover:text-green-700"
+            >
+              通知
+              {unreadNotifications.length > 0 ? (
+                <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] leading-none">
+                  {unreadNotifications.length > 99 ? '99+' : unreadNotifications.length}
+                </span>
+              ) : null}
+            </button>
+
+            {notifyOpen ? (
+              <div className="absolute right-0 mt-2 w-[320px] rounded-2xl border border-gray-100 bg-white shadow-lg overflow-hidden z-40">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-semibold text-gray-800">通知</p>
+                  <button
+                    type="button"
+                    onClick={markAllRead}
+                    className="text-xs text-green-700 hover:text-green-800"
+                  >
+                    全部已讀
+                  </button>
+                </div>
+                <div className="max-h-[360px] overflow-auto">
+                  {unreadNotifications.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-xs text-gray-400">目前沒有新通知</div>
+                  ) : (
+                    <div className="divide-y divide-gray-50">
+                      {unreadNotifications.map((a) => (
+                        <button
+                          key={`${a.id}:${a.updated_at}`}
+                          type="button"
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50"
+                          onClick={() => {
+                            markOneRead(a)
+                            setSelectedDate(a.appointment_date)
+                            setNotifyOpen(false)
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-gray-800">
+                              {a.appointment_time.slice(0, 5)} {a.customer_name}
+                            </p>
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full ${STATUS_COLOR[a.status]}`}>
+                              {STATUS_LABEL[a.status]}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-1">
+                            {a.appointment_date}・{(a.party_size ?? 1)} 人・{a.service_item || '（未填寫服務項目）'}
+                          </p>
+                          <p className="text-[11px] text-gray-400 mt-1">
+                            更新：{new Date(appointmentEventAtMs(a)).toLocaleString('zh-TW')}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={() => setShareOpen(true)}
