@@ -7,6 +7,7 @@
 - [x] **子網域導流修正**：個人介紹頁「立即預約」改為使用相對路徑 `/booking`，避免跳回 `project-*.vercel.app`
 - [x] **子網域判斷強化**：新增 `NEXT_PUBLIC_ROOT_DOMAIN=mybookdate.com` 後，middleware 僅對 `*.mybookdate.com` 做 slug rewrite，避免 apex `mybookdate.com` 被誤判為 slug
 - [x] **後台分享功能**：`/dashboard/appointments` 右上角新增「分享」按鈕，可複製個人子網域連結並顯示 QR Code 供顧客掃描開啟
+- [x] **後台通知（免手動重整）**：`/dashboard/appointments` 右上角新增「通知」＋未讀數字；每 15 秒輪詢預約資料，偵測「新增/取消/改期」並顯示通知列表；點擊即已讀消失（已讀狀態暫存於 localStorage）
 - [x] **新增依賴**：加入 `qrcode.react`（以 `QRCodeCanvas` 顯示 QR Code）
 - [x] **驗證（正式網域）**：`kenter.mybookdate.com`「立即預約」連結與後台「分享」功能正常
 
