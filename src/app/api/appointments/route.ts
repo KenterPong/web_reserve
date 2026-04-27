@@ -4,6 +4,8 @@ import { validatePhone, getClientIp } from '@/lib/utils'
 import { dayKeyForDateTaipei } from '@/lib/datetime-taipei'
 import { checkRateLimit } from '@/lib/rate-limit'
 
+const MIN_LEAD_TIME_MS = 2 * 60 * 60 * 1000
+
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
   return (h || 0) * 60 + (m || 0)
@@ -152,12 +154,22 @@ export async function POST(req: NextRequest) {
 
     const start = toMinutes(schedule.start)
     const end = toMinutes(schedule.end)
-    const requested = toMinutes(String(appointmentTime).slice(0, 5))
+    const hhmm = String(appointmentTime).slice(0, 5)
+    const requested = toMinutes(hhmm)
     if (requested < start || requested + duration > end) {
       return NextResponse.json({ error: '此時間不在營業時段內' }, { status: 400 })
     }
     if ((requested - start) % duration !== 0) {
       return NextResponse.json({ error: `請選擇每 ${duration} 分鐘為間隔的時段` }, { status: 400 })
+    }
+
+    // Lead time rule: must be at least 2 hours from now (Asia/Taipei)
+    const apptAt = new Date(`${appointmentDate}T${hhmm}:00+08:00`).getTime()
+    if (!Number.isFinite(apptAt)) {
+      return NextResponse.json({ error: '預約時間格式錯誤' }, { status: 400 })
+    }
+    if (apptAt < Date.now() + MIN_LEAD_TIME_MS) {
+      return NextResponse.json({ error: '最早需在 2 小時後才能預約' }, { status: 400 })
     }
 
     const manageToken = crypto.randomUUID()

@@ -5,9 +5,25 @@ import { ChatMessage } from '@/types'
 import { dayKeyForDateTaipei, taipeiTodayYmd, weekdayLabelTaipei } from '@/lib/datetime-taipei'
 import { checkRateLimit } from '@/lib/rate-limit'
 
+const MIN_LEAD_TIME_MS = 2 * 60 * 60 * 1000
+
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
   return (h || 0) * 60 + (m || 0)
+}
+
+function taipeiNowYmdMinutes(): { ymd: string; minutes: number } {
+  const now = new Date()
+  const ymd = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now)
+  const hh = Number(parts.find(p => p.type === 'hour')?.value ?? '0')
+  const mm = Number(parts.find(p => p.type === 'minute')?.value ?? '0')
+  return { ymd, minutes: (hh || 0) * 60 + (mm || 0) }
 }
 
 function isExceptionClosed(worker: { working_hours_exceptions?: Record<string, boolean> }, date: string): boolean {
@@ -31,6 +47,8 @@ function buildSuggestionsForDate(args: {
   const start = toMinutes(s.start)
   const end = toMinutes(s.end)
   const req = toMinutes(args.requestedTime.slice(0, 5))
+  const { ymd: todayYmd, minutes: nowMin } = taipeiNowYmdMinutes()
+  const minToday = args.date === todayYmd ? nowMin + 120 : -Infinity
 
   const bookedSet = new Set(
     args.booked
@@ -43,7 +61,7 @@ function buildSuggestionsForDate(args: {
     const hh = String(Math.floor(t / 60)).padStart(2, '0')
     const mm = String(t % 60).padStart(2, '0')
     const hhmm = `${hh}:${mm}`
-    if (!bookedSet.has(hhmm)) slots.push(hhmm)
+    if (!bookedSet.has(hhmm) && t >= minToday) slots.push(hhmm)
   }
 
   if (slots.length === 0) return []
@@ -178,7 +196,11 @@ export async function POST(req: NextRequest) {
         (a) => a.appointment_date === proposedDate && String(a.appointment_time).slice(0, 5) === proposedTime,
       )
 
-      if (!withinHours || isBooked) {
+      const proposedAt = new Date(`${proposedDate}T${proposedTime}:00+08:00`).getTime()
+      const leadOk =
+        Number.isFinite(proposedAt) && proposedAt >= Date.now() + MIN_LEAD_TIME_MS
+
+      if (!withinHours || isBooked || !leadOk) {
         const suggestions = buildSuggestionsForDate({
           worker,
           booked: (appointments ?? []).map((a) => ({
@@ -192,7 +214,7 @@ export async function POST(req: NextRequest) {
         const suggestText =
           suggestions.length > 0
             ? `可以的話，這天我建議你改選：${suggestions.join('、')}。你想預約哪一個時段？`
-            : '這天可能已滿或不在營業時間內，請換一個日期或時段，我幫你看看。'
+            : '這天可能已滿、不在營業時間內，或距離現在太近，請換一個日期或時段，我幫你看看。'
 
         const assistantMessage: ChatMessage = {
           role: 'assistant',

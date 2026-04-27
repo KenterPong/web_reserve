@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { validatePhone } from '@/lib/utils'
 
+const MIN_LEAD_TIME_MS = 2 * 60 * 60 * 1000
+
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
   return (h || 0) * 60 + (m || 0)
@@ -14,7 +16,7 @@ function dayKeyForDate(dateStr: string): 'sun' | 'mon' | 'tue' | 'wed' | 'thu' |
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { manageToken, customerPhone, action, newDate, newTime } = await req.json()
+    const { manageToken, customerPhone, action, newDate, newTime, partySize, serviceItem } = await req.json()
 
     if (!manageToken || !customerPhone || !action) {
       return NextResponse.json({ error: '缺少必要欄位' }, { status: 400 })
@@ -25,7 +27,7 @@ export async function PATCH(req: NextRequest) {
 
     const { data: appt, error: apptErr } = await supabaseAdmin
       .from('appointments')
-      .select('id, worker_id, customer_phone, appointment_date, appointment_time, status')
+      .select('id, worker_id, customer_phone, appointment_date, appointment_time, status, party_size, service_item')
       .eq('manage_token', manageToken)
       .single()
 
@@ -57,6 +59,18 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: '缺少改期時間' }, { status: 400 })
       }
 
+      const parsedPartySize = partySize === undefined ? undefined : Number(partySize)
+      if (parsedPartySize !== undefined) {
+        if (!Number.isFinite(parsedPartySize) || parsedPartySize < 1 || parsedPartySize > 20) {
+          return NextResponse.json({ error: '人數格式不正確（1～20）' }, { status: 400 })
+        }
+      }
+      const service =
+        serviceItem === undefined ? undefined : String(serviceItem ?? '').trim()
+      if (service !== undefined && !service) {
+        return NextResponse.json({ error: '請填寫服務項目' }, { status: 400 })
+      }
+
       const { data: worker } = await supabaseAdmin
         .from('workers')
         .select('id, is_active, slot_duration, working_hours')
@@ -77,7 +91,8 @@ export async function PATCH(req: NextRequest) {
 
       const start = toMinutes(schedule.start)
       const end = toMinutes(schedule.end)
-      const requested = toMinutes(String(newTime).slice(0, 5))
+      const hhmm = String(newTime).slice(0, 5)
+      const requested = toMinutes(hhmm)
       if (requested < start || requested + duration > end) {
         return NextResponse.json({ error: '此時間不在營業時段內' }, { status: 400 })
       }
@@ -85,9 +100,23 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: `請選擇每 ${duration} 分鐘為間隔的時段` }, { status: 400 })
       }
 
+      // Lead time rule: must be at least 2 hours from now (Asia/Taipei)
+      const apptAt = new Date(`${newDate}T${hhmm}:00+08:00`).getTime()
+      if (!Number.isFinite(apptAt)) {
+        return NextResponse.json({ error: '改期時間格式錯誤' }, { status: 400 })
+      }
+      if (apptAt < Date.now() + MIN_LEAD_TIME_MS) {
+        return NextResponse.json({ error: '最早需在 2 小時後才能改期' }, { status: 400 })
+      }
+
       const { data, error } = await supabaseAdmin
         .from('appointments')
-        .update({ appointment_date: newDate, appointment_time: newTime })
+        .update({
+          appointment_date: newDate,
+          appointment_time: newTime,
+          ...(parsedPartySize !== undefined ? { party_size: parsedPartySize } : {}),
+          ...(service !== undefined ? { service_item: service } : {}),
+        })
         .eq('id', appt.id)
         .select()
         .single()

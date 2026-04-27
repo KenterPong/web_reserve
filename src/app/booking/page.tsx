@@ -29,6 +29,8 @@ interface CompletedAppointment {
   manageToken: string
   date: string
   time: string
+  partySize: number
+  serviceItem: string
 }
 
 type LookupAppointment = { date: string; time: string }
@@ -54,6 +56,20 @@ function getSlugFromHost(): string | null {
   if (parts.length < 2) return null
   if (parts[0] === 'www') return null
   return parts[0] || null
+}
+
+function taipeiNowYmdMinutes(): { ymd: string; minutes: number } {
+  const now = new Date()
+  const ymd = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now)
+  const hh = Number(parts.find(p => p.type === 'hour')?.value ?? '0')
+  const mm = Number(parts.find(p => p.type === 'minute')?.value ?? '0')
+  return { ymd, minutes: (hh || 0) * 60 + (mm || 0) }
 }
 
 function toMinutes(hhmm: string): number {
@@ -112,6 +128,11 @@ function BookingChat() {
   const [manageMsg, setManageMsg] = useState<string>('')
   const [isManaging, setIsManaging] = useState(false)
   const [isRescheduling, setIsRescheduling] = useState(false)
+  const [isCancelled, setIsCancelled] = useState(false)
+  const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleTime, setRescheduleTime] = useState('')
+  const [reschedulePartySize, setReschedulePartySize] = useState('1')
+  const [rescheduleServiceItem, setRescheduleServiceItem] = useState('')
   const [showLookup, setShowLookup] = useState(false)
   const [lookupPhone, setLookupPhone] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
@@ -204,8 +225,14 @@ function BookingChat() {
     const start = toMinutes(s.start)
     const end = toMinutes(s.end)
     const out: string[] = []
+    const { ymd: todayYmd, minutes: nowMin } = taipeiNowYmdMinutes()
+    const minMinutes = selectedDate === todayYmd ? nowMin + 120 : -Infinity
+    const minAligned =
+      minMinutes === -Infinity
+        ? -Infinity
+        : Math.max(start, start + Math.ceil((minMinutes - start) / dur) * dur)
     for (let t = start; t + dur <= end; t += dur) out.push(fromMinutes(t))
-    return out
+    return out.filter((t) => toMinutes(t) >= minAligned)
   })()
 
   const bookedSet = new Set(bookedTimes.map(t => t.slice(0, 5)))
@@ -232,6 +259,11 @@ function BookingChat() {
     if (requested < start || requested + dur > end) return { ok: false, reason: '此時間不在營業時段內' }
     if ((requested - start) % dur !== 0) return { ok: false, reason: `請選擇每 ${dur} 分鐘為間隔的時段` }
     if (bookedSet.has(String(time).slice(0, 5))) return { ok: false, reason: '此時段已被預約' }
+
+    const { ymd: todayYmd, minutes: nowMin } = taipeiNowYmdMinutes()
+    if (date === todayYmd && requested < nowMin + 120) {
+      return { ok: false, reason: '最早需在 2 小時後才能預約' }
+    }
 
     return { ok: true }
   }
@@ -354,6 +386,8 @@ function BookingChat() {
           manageToken: data.manageToken,
           date: pendingBooking.proposedDate,
           time: pendingBooking.proposedTime,
+          partySize: Number(partySize),
+          serviceItem: serviceItem.trim(),
         })
         setIsCompleted(true)
       } else {
@@ -406,7 +440,9 @@ function BookingChat() {
       })
       const data = await res.json()
       if (res.ok) {
-        setManageMsg('已取消預約')
+        setIsCancelled(true)
+        setIsRescheduling(false)
+        setManageMsg('取消成功')
       } else {
         setManageMsg(data.error || '取消失敗')
       }
@@ -429,12 +465,21 @@ function BookingChat() {
           action: 'reschedule',
           newDate,
           newTime,
+          partySize: Number(reschedulePartySize),
+          serviceItem: rescheduleServiceItem.trim(),
         }),
       })
       const data = await res.json()
       if (res.ok) {
-        setCompleted({ ...completed, date: newDate, time: newTime })
+        setCompleted({
+          ...completed,
+          date: newDate,
+          time: newTime,
+          partySize: Number(reschedulePartySize),
+          serviceItem: rescheduleServiceItem.trim(),
+        })
         setIsRescheduling(false)
+        setRescheduleTime('')
         setManageMsg('已完成改期')
       } else {
         setManageMsg(data.error || '改期失敗')
@@ -443,6 +488,16 @@ function BookingChat() {
       setIsManaging(false)
     }
   }
+
+  useEffect(() => {
+    if (!isRescheduling || !completed) return
+    setIsCancelled(false)
+    setRescheduleDate(completed.date)
+    setSelectedDate(completed.date)
+    setRescheduleTime('')
+    setReschedulePartySize(String(completed.partySize ?? 1))
+    setRescheduleServiceItem(completed.serviceItem ?? '')
+  }, [isRescheduling, completed])
 
   if (notFound) {
     return (
@@ -464,17 +519,24 @@ function BookingChat() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full text-center space-y-4">
-          <div className="text-5xl">✅</div>
-          <h2 className="text-xl font-bold text-gray-800">預約成功！</h2>
+          <div className="text-5xl">{isCancelled ? '✅' : '✅'}</div>
+          <h2 className="text-xl font-bold text-gray-800">{isCancelled ? '已取消預約' : '預約成功！'}</h2>
           <p className="text-sm text-gray-700">
             {worker.business_name || worker.display_name}
           </p>
-          <p className="text-gray-600 text-sm">
-            預約時間：<br />
-            <span className="font-semibold text-gray-800">
-              {formatDateTime(completed?.date ?? pendingBooking.proposedDate, completed?.time ?? pendingBooking.proposedTime)}
-            </span>
-          </p>
+          {!isCancelled ? (
+            <p className="text-gray-600 text-sm">
+              預約時間：<br />
+              <span className="font-semibold text-gray-800">
+                {formatDateTime(completed?.date ?? pendingBooking.proposedDate, completed?.time ?? pendingBooking.proposedTime)}
+              </span>
+            </p>
+          ) : (
+            <p className="text-gray-600 text-sm">
+              已成功取消此筆預約。<br />
+              如需重新預約，請回到預約頁再選擇時段。
+            </p>
+          )}
           <p className="text-xs text-gray-500">
             請截圖保存此頁面作為預約憑證
           </p>
@@ -492,7 +554,8 @@ function BookingChat() {
 
           {manageMsg ? <p className="text-sm text-green-600">{manageMsg}</p> : null}
 
-          <div className="space-y-2 pt-2">
+          {!isCancelled ? (
+            <div className="space-y-2 pt-2">
             {!completed?.manageToken ? (
               <p className="text-xs text-red-500">
                 缺少管理代碼（manageToken），請重新預約一次再嘗試取消/改期。
@@ -512,15 +575,48 @@ function BookingChat() {
             >
               取消預約
             </button>
-          </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="w-full bg-green-500 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-600 transition-colors"
+            >
+              回到預約頁
+            </button>
+          )}
 
           {isRescheduling ? (
             <div className="text-left pt-3 space-y-2">
-              <p className="text-xs text-gray-500">選擇新的日期與時段</p>
+              <p className="text-xs text-gray-500">確認改期資訊</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <label className="block text-[11px] text-gray-500 mb-1">人數</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={reschedulePartySize}
+                    onChange={(e) => setReschedulePartySize(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[11px] text-gray-500 mb-1">服務項目</label>
+                  <input
+                    type="text"
+                    value={rescheduleServiceItem}
+                    onChange={(e) => setRescheduleServiceItem(e.target.value)}
+                    placeholder="例：洗+剪、凝膠卸甲+手部保養"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">選擇新的日期與時段（需距離現在至少 2 小時）</p>
               <input
                 type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                value={rescheduleDate || selectedDate}
+                onChange={(e) => { setRescheduleDate(e.target.value); setSelectedDate(e.target.value); setRescheduleTime('') }}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400"
               />
               <div className="flex flex-wrap gap-2">
@@ -530,11 +626,13 @@ function BookingChat() {
                     <button
                       key={t}
                       disabled={isBooked || isManaging}
-                      onClick={() => handleReschedule(selectedDate, `${t}:00`)}
+                      onClick={() => setRescheduleTime(`${t}:00`)}
                       className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                         isBooked || isManaging
                           ? 'border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed'
-                          : 'border-green-300 text-green-700 hover:bg-green-50'
+                          : rescheduleTime.slice(0, 5) === t
+                            ? 'border-green-600 bg-green-50 text-green-800'
+                            : 'border-green-300 text-green-700 hover:bg-green-50'
                       }`}
                     >
                       {t}
@@ -542,6 +640,20 @@ function BookingChat() {
                   )
                 })}
               </div>
+              <button
+                type="button"
+                disabled={
+                  isManaging ||
+                  !completed?.manageToken ||
+                  !rescheduleTime ||
+                  !rescheduleServiceItem.trim() ||
+                  !reschedulePartySize.trim()
+                }
+                onClick={() => handleReschedule(rescheduleDate || selectedDate, rescheduleTime)}
+                className="w-full bg-green-500 text-white rounded-xl py-3 text-sm font-semibold disabled:opacity-50 hover:bg-green-600 transition-colors"
+              >
+                {isManaging ? '送出中...' : '確認改期'}
+              </button>
               {availableTimes.length === 0 ? (
                 <p className="text-xs text-gray-400">這天未營業或尚未設定營業時間</p>
               ) : null}
