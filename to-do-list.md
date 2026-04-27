@@ -2,9 +2,32 @@
 
 > **進度彙報：** 見根目錄 `PROGRESS.md`（與本清單同步維護）。
 
+### 今日進度（2026-04-27）
+
+- [x] **子網域導流修正**：個人介紹頁「立即預約」改為使用相對路徑 `/booking`，避免跳回 `project-*.vercel.app`
+- [x] **子網域判斷強化**：新增 `NEXT_PUBLIC_ROOT_DOMAIN=mybookdate.com` 後，middleware 僅對 `*.mybookdate.com` 做 slug rewrite，避免 apex `mybookdate.com` 被誤判為 slug
+- [x] **後台分享功能**：`/dashboard/appointments` 右上角新增「分享」按鈕，可複製個人子網域連結並顯示 QR Code 供顧客掃描開啟
+- [x] **新增依賴**：加入 `qrcode.react`（以 `QRCodeCanvas` 顯示 QR Code）
+- [x] **驗證（正式網域）**：`kenter.mybookdate.com`「立即預約」連結與後台「分享」功能正常
+
+### 今日進度（2026-04-26）
+
+- [x] **GitHub**：初始化 repo、`.gitignore`、推 `main`（`KenterPong/web_reserve`）
+- [x] **Vercel**：連結 GitHub App 權限、專案 `web_reserve`、Production 部署成功
+- [x] **建置設定**：Framework **Next.js**、**Output Directory** 使用預設（修正誤設 `public` 造成失敗）
+- [x] **環境變數（Production）**：Supabase、Anthropic、LINE、`NEXT_PUBLIC_APP_URL` 與 `LINE_CALLBACK_URL` / `NEXT_PUBLIC_LINE_CALLBACK_URL`（**https**、`project-c8c8z.vercel.app`）
+- [x] **LINE Console**：Callback 改為 **https**…`/auth/callback`，與 Vercel 變數一致
+- [x] **程式修正**：`SUPABASE_SERVICE_ROLE_KEY` 同時接受 `sb_secret_` 與舊版 `eyJ`；**middleware** 對 `*.vercel.app` **不**做 slug rewrite（預設網域首頁不再 404）
+- [x] **驗證**：正式網址首頁、`/auth/login`、後台 `/dashboard/appointments`、預約流程 **以 `?slug=` 在 `project-c8c8z.vercel.app` 上測試通過**
+- [x] **自訂網域**：購買 `mybookdate.com`（Cloudflare Registrar，$10.46/年）
+- [x] **DNS 設定**：Cloudflare DNS 三筆 CNAME 指向 Vercel，`*` 改為橘雲（Proxied），SSL/TLS 模式設為 Flexible
+- [x] **子網域驗證**：`kenter.mybookdate.com` 正常顯示個人介紹頁（頭像、簡介、營業時間、立即預約按鈕）✅
+- [x] **更新環境變數/Callback**：`NEXT_PUBLIC_APP_URL`、`LINE_CALLBACK_URL` / `NEXT_PUBLIC_LINE_CALLBACK_URL` 改為 `https://www.mybookdate.com`，並同步更新 LINE Console Callback URL
+- [ ] **待後續**：完整預約流程在正式網域驗證（含 LINE 登入、預約對話）
+
 ### 文件/設定（必做）
 - [x] 在 Supabase 執行 `supabase/schema.sql`
-- [ ] 建立 Storage bucket：`reference-images`（Private）
+- [x] 建立 Storage bucket：`reference-images`（Private，5MB 限制，限 jpg/png）
 - [ ] 撤銷 `anon`/`authenticated` 對資料表與 sequence 權限
       → SQL 在 **`supabase/schema.sql`** 最下方「撤銷 anon 權限」段落，執行後用 anon key 直接查詢應回傳 permission denied
 - [x] 確認環境變數齊全（至少 `SUPABASE_SERVICE_ROLE_KEY`、`ANTHROPIC_API_KEY`、LINE 相關）
@@ -27,6 +50,7 @@
   - [x] `/booking` → `/booking?slug=...`
   - [x] slug 不存在 → 404
 - [x] 主網域（www）正常路由，不受子網域 rewrite 影響
+- [x] **`*.vercel.app`**：排除 slug rewrite（Vercel 預設網域用 `/worker-profile?slug=`、`/booking?slug=` 測試；`*.lvh.me` 與自訂網域之 `{slug}.網域` 仍走 rewrite）
 
 ### Workers
 - [x] `GET /api/workers?slug=`：回傳公開資料（`is_active=true`；含營業／例外／`contact_phone` 等顯示用欄位）
@@ -98,14 +122,17 @@
 - [ ] Footer 客服聯絡方式（email 或 LINE 平台客服帳號）
 
 ### 測試清單（最低限度，部署後逐項確認）
+- [x] **Vercel Production**：`https://project-c8c8z.vercel.app` 首頁、LINE 登入、後台日曆、以 `?slug=` 預約流程正常
 - [x] 子網域 rewrite：`*.lvh.me:3000` 正常進 profile 頁與 booking 頁
 - [x] 同時雙視窗搶同一時段：一方 201、一方 409
 - [x] `session_token` 過期後 `POST /api/chat` 被拒絕（401）
 - [x] 非本人 cookie 無法讀／改他人預約（403）
 - [ ] anon key 直接查 `workers` 資料表應回傳 permission denied（**須已在 DB 執行 REVOKE**）
-- [ ] `yourdomain.com` 301 redirect 到 `www.yourdomain.com`
-- [ ] Cloudflare DNS 所有記錄均為灰雲（DNS only）
+- [ ] `mybookdate.com` 301 redirect 到 `www.mybookdate.com`（Cloudflare Rules 設定）
+- [ ] Cloudflare DNS：`*` 為橘雲（Proxied），其餘為灰雲；SSL/TLS 為 Flexible ✅
 - [x] `/privacy` 與 `/terms` 頁面存在且可正常訪問
 - [x] 預約完成後確認頁顯示完整資訊（工作者電話、日期時間、截圖提示）
 - [x] 電話查詢：輸入正確電話可查到未來預約，不顯示歷史紀錄
 - [x] 電話查詢：輸入不存在的電話顯示「查無預約」而非錯誤
+- [x] 子網域正式網域： 正常顯示個人介紹頁 ✅
+- [ ] 完整預約流程在  正式網域驗證（含 LINE 登入、預約對話）
