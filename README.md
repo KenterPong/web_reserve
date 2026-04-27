@@ -682,6 +682,10 @@ LINE_CLIENT_SECRET=                 # 僅伺服器端，勿提交版本庫
 LINE_CALLBACK_URL=                  # 伺服器換 token 的 redirect_uri，須與 LINE Console 一致
 NEXT_PUBLIC_LINE_CALLBACK_URL=      # 須與 LINE_CALLBACK_URL 相同（前端導向 authorize 用）
 
+# Rate limit
+# 建立預約（POST /api/appointments）：每 IP + workerId 每小時上限（預設 5；設為 0 或負數可關閉）
+APPOINTMENTS_POST_RATE_LIMIT=
+
 # App
 NEXT_PUBLIC_APP_URL=                # www 版本，如 https://www.yourdomain.com
 # 必填（正式環境建議）：根網域（例：mybookdate.com），用於子網域判斷與分享連結組裝

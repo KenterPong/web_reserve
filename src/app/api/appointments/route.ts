@@ -103,13 +103,16 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = getClientIp(req)
-    const postRl = checkRateLimit({
-      key: `appointments_post:${ip}:${wId}`,
-      limit: 5,
-      windowMs: 60 * 60 * 1000,
-    })
-    if (!postRl.allowed) {
-      return NextResponse.json({ error: '建立預約次數過多，請稍後再試' }, { status: 429 })
+    const postLimit = Number(process.env.APPOINTMENTS_POST_RATE_LIMIT ?? 5)
+    if (Number.isFinite(postLimit) && postLimit > 0) {
+      const postRl = checkRateLimit({
+        key: `appointments_post:${ip}:${wId}`,
+        limit: postLimit,
+        windowMs: 60 * 60 * 1000,
+      })
+      if (!postRl.allowed) {
+        return NextResponse.json({ error: '建立預約次數過多，請稍後再試' }, { status: 429 })
+      }
     }
 
     // Validate phone format

@@ -393,6 +393,10 @@ function BookingChat() {
       } else {
         const data = await res.json()
         alert(data.error || '預約失敗，請稍後再試')
+        // If the server rejects (e.g. 2-hour lead time / slot taken),
+        // return the user to the date/time picker to re-select.
+        setSelectedDate(pendingBooking.proposedDate)
+        setPendingBooking(null)
       }
     } catch {
       alert('網路錯誤，請稍後再試')
