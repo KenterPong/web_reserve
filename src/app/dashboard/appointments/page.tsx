@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Appointment } from '@/types'
+import QRCode from 'qrcode.react'
 
 const STATUS_LABEL: Record<string, string> = {
   confirmed: '已確認',
@@ -20,6 +21,9 @@ const STATUS_COLOR: Record<string, string> = {
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [mySlug, setMySlug] = useState<string>('')
+  const [shareOpen, setShareOpen] = useState(false)
+  const [copyMsg, setCopyMsg] = useState('')
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date()
     const y = now.getFullYear()
@@ -35,6 +39,19 @@ export default function AppointmentsPage() {
   })
 
   useEffect(() => { fetchAppointments() }, [currentMonth])
+
+  useEffect(() => {
+    fetch('/api/workers/me')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => setMySlug(data?.worker?.slug ?? ''))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!copyMsg) return
+    const t = window.setTimeout(() => setCopyMsg(''), 1600)
+    return () => window.clearTimeout(t)
+  }, [copyMsg])
 
   async function fetchAppointments() {
     setIsLoading(true)
@@ -91,6 +108,23 @@ export default function AppointmentsPage() {
     .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
 
   const today = new Date().toISOString().split('T')[0]
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN
+  const shareUrl =
+    mySlug && rootDomain
+      ? `https://${mySlug}.${rootDomain}`
+      : mySlug
+        ? `${window.location.protocol}//${mySlug}.${window.location.host.replace(/^www\./, '')}`
+        : ''
+
+  async function handleCopyShareUrl() {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopyMsg('已複製')
+    } catch {
+      setCopyMsg('複製失敗')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -100,8 +134,71 @@ export default function AppointmentsPage() {
           <h1 className="text-lg font-bold text-gray-800">預約管理</h1>
           <p className="text-xs text-gray-400">點選日期查看預約</p>
         </div>
-        <a href="/dashboard/profile" className="text-sm text-green-600">設定</a>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            className="text-sm text-green-600 hover:text-green-700"
+          >
+            分享
+          </button>
+          <a href="/dashboard/profile" className="text-sm text-green-600 hover:text-green-700">設定</a>
+        </div>
       </div>
+
+      {shareOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setShareOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white shadow-lg p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-gray-800">分享你的預約連結</h2>
+              <button
+                type="button"
+                onClick={() => setShareOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                aria-label="關閉"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-xs text-gray-500 mb-1">你的專屬連結</p>
+                <p className="text-sm font-medium text-gray-800 break-all">
+                  {shareUrl || '尚未設定 slug（請到「設定」填寫專屬網址）'}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyShareUrl}
+                    disabled={!shareUrl}
+                    className="px-3 py-2 rounded-lg bg-green-500 text-white text-sm font-semibold disabled:opacity-50 hover:bg-green-600 transition-colors"
+                  >
+                    複製連結
+                  </button>
+                  {copyMsg ? <span className="text-xs text-gray-500">{copyMsg}</span> : null}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 p-4 flex flex-col items-center">
+                <p className="text-xs text-gray-500 mb-3">或讓客戶掃描 QR Code</p>
+                <div className={`bg-white p-3 rounded-xl ${shareUrl ? '' : 'opacity-40'}`}>
+                  <QRCode value={shareUrl || 'https://example.com'} size={192} />
+                </div>
+                <p className="text-[11px] text-gray-400 mt-3 text-center">
+                  客戶掃描後會直接開啟你的子網域預約頁
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
         {/* Calendar */}
