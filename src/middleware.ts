@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { validateSlug } from '@/lib/utils'
+
 const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? '').toLowerCase()
+
+function isMainMarketingHost(hostname: string): boolean {
+  if (ROOT_DOMAIN) {
+    return hostname === `www.${ROOT_DOMAIN}` || hostname === ROOT_DOMAIN
+  }
+  // 本機子網域測試：常見入口是 www.lvh.me
+  return hostname === 'www.lvh.me'
+}
 
 // Returns the worker slug if the host is a worker subdomain (not www).
 // If NEXT_PUBLIC_ROOT_DOMAIN is set, only treat *.ROOT_DOMAIN as valid worker subdomains.
@@ -38,6 +48,17 @@ export function middleware(req: NextRequest) {
   // 若當成 slug 會 rewrite 到不存在的 profile → 404。
   if (hostname.endsWith('.vercel.app')) {
     return NextResponse.next()
+  }
+
+  // 從 LINE 點「推薦連結」通常會直接開啟 www?ref=slug；導向登入頁，避免使用者沒按首頁按鈕就丟失 ref
+  if (pathname === '/' && isMainMarketingHost(hostname)) {
+    const ref = req.nextUrl.searchParams.get('ref')?.trim() ?? ''
+    if (ref && validateSlug(ref)) {
+      const dest = new URL(req.url)
+      dest.pathname = '/auth/login'
+      dest.search = `?ref=${encodeURIComponent(ref)}`
+      return NextResponse.redirect(dest)
+    }
   }
 
   const slug = extractSlug(host)
