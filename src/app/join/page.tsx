@@ -26,7 +26,10 @@ export default function JoinPage({
         </div>
         <h1 className="text-xl font-semibold text-gray-900">登入前確認</h1>
         <p className="mt-2 max-w-md text-sm text-gray-600">
-          請確認推薦人代碼是否正確，再進行 LINE 登入。若你是從<strong>預約連結</strong>進來，請改開工作者提供給你的專屬預約網址。
+          請確認推薦人代碼是否正確，再進行 LINE 登入。代碼須與推薦人在<strong>後台個人檔</strong>已儲存的專屬網址代碼一致，系統才能寫入推薦紀錄。
+        </p>
+        <p className="mt-2 max-w-md text-xs text-gray-500">
+          若你是從<strong>預約連結</strong>進來，請改開工作者提供給你的專屬預約網址。
         </p>
       </div>
       <JoinForm initialSlug={initialSlug} />
