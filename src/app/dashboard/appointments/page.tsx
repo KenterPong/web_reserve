@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Appointment } from '@/types'
+import { copyTextToClipboard } from '@/lib/utils'
 import { QRCodeCanvas } from 'qrcode.react'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -187,24 +188,14 @@ export default function AppointmentsPage() {
         ? `${window.location.protocol}//${window.location.host.replace(/^www\./, '')}?ref=${encodeURIComponent(mySlug)}`
         : ''
 
-  async function handleCopyShareUrl() {
+  function handleCopyShareUrl() {
     if (!shareUrl) return
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopyMsg('已複製')
-    } catch {
-      setCopyMsg('複製失敗')
-    }
+    void copyTextToClipboard(shareUrl).then((ok) => setCopyMsg(ok ? '已複製' : '複製失敗'))
   }
 
-  async function handleCopyReferralUrl() {
+  function handleCopyReferralUrl() {
     if (!referralUrl) return
-    try {
-      await navigator.clipboard.writeText(referralUrl)
-      setCopyMsg('已複製')
-    } catch {
-      setCopyMsg('複製失敗')
-    }
+    void copyTextToClipboard(referralUrl).then((ok) => setCopyMsg(ok ? '已複製' : '複製失敗'))
   }
 
   function unlockNextText(n: number): string | null {
@@ -479,12 +470,17 @@ export default function AppointmentsPage() {
                   <p className="text-xs text-gray-500">把推薦連結分享給其他設計師，他們完成加入後就會計入推薦數。</p>
                   <button
                     type="button"
-                    onClick={handleCopyReferralUrl}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleCopyReferralUrl()
+                    }}
                     disabled={!referralUrl}
                     className="mt-2 w-full px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-gray-800 transition-colors"
                   >
                     複製推薦連結
                   </button>
+                  {copyMsg ? <p className="text-xs text-gray-500">{copyMsg}</p> : null}
                 </>
               ) : (
                 <p className="text-green-700 font-medium">已解鎖（入口開發中）。</p>

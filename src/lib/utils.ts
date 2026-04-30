@@ -23,3 +23,34 @@ export function getWorkerIdFromCookie(cookieHeader: string | null): string | nul
   const match = cookieHeader.match(/worker_id=([^;]+)/)
   return match ? match[1] : null
 }
+
+/** 盡量在「使用者點擊」同一同步堆疊內啟動 Clipboard API，並提供 execCommand 後備（行動裝置較穩）。 */
+export function copyTextToClipboard(text: string): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false)
+
+  const fallbackExecCommand = (): boolean => {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.left = '-9999px'
+      ta.style.top = '0'
+      document.body.appendChild(ta)
+      ta.focus()
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      return ok
+    } catch {
+      return false
+    }
+  }
+
+  if (navigator.clipboard?.writeText) {
+    // 不要用 await：避免部分瀏覽器把複製判定為已脫離 user gesture
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackExecCommand())
+  }
+
+  return Promise.resolve(fallbackExecCommand())
+}
