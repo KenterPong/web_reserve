@@ -1,13 +1,23 @@
 import Link from 'next/link'
+import { validateSlug } from '@/lib/utils'
 
-export default function HomePage() {
+type HomeProps = {
+  searchParams: Record<string, string | string[] | undefined>
+}
+
+export default function HomePage({ searchParams }: HomeProps) {
+  const rawRef = searchParams.ref
+  const refParam = typeof rawRef === 'string' ? rawRef.trim() : ''
+  const refForLogin = validateSlug(refParam) ? refParam : ''
+  const loginHref = refForLogin ? `/auth/login?ref=${encodeURIComponent(refForLogin)}` : '/auth/login'
+
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
       <nav className="px-6 py-4 flex justify-between items-center border-b border-gray-100">
         <span className="font-bold text-gray-800">AI 預約平台</span>
         <Link
-          href="/auth/login"
+          href={loginHref}
           className="bg-green-500 text-white text-sm px-4 py-2 rounded-full hover:bg-green-600 transition-colors"
         >
           工作者登入
@@ -25,7 +35,7 @@ export default function HomePage() {
           分享連結，顧客即可透過 AI 完成預約。
         </p>
         <Link
-          href="/auth/login"
+          href={loginHref}
           className="inline-block bg-green-500 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-green-600 transition-colors text-lg"
         >
           立即加入 · NT$199/月

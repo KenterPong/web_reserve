@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { readLineOAuthState, clearLineOAuthState } from '@/lib/line-oauth-state'
 
@@ -18,7 +18,6 @@ function base64UrlDecodeUtf8(input: string): string {
 function CallbackHandler() {
   const [isError, setIsError] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const router = useRouter()
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -62,7 +61,13 @@ function CallbackHandler() {
         lineCallbackInFlight.delete(code)
         clearLineOAuthState()
         if (res.ok) {
-          router.replace('/dashboard')
+          try {
+            sessionStorage.removeItem('signup_ref')
+          } catch {
+            // ignore
+          }
+          // 硬導向：確保 Set-Cookie（worker_id）在進入後台前已由瀏覽器提交，避免 client navigation 時 middleware 讀不到 cookie
+          window.location.assign('/dashboard')
         } else {
           setIsError(true)
           try {
@@ -79,7 +84,7 @@ function CallbackHandler() {
         setIsError(true)
         setErrorMessage('連線失敗，請稍後再試')
       })
-  }, [searchParams, router])
+  }, [searchParams])
 
   if (isError) {
     return (

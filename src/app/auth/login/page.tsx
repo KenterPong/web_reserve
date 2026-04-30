@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { persistLineOAuthState } from '@/lib/line-oauth-state'
+import { validateSlug } from '@/lib/utils'
 
 function base64UrlEncodeUtf8(input: string): string {
   const bytes = new TextEncoder().encode(input)
@@ -15,12 +16,28 @@ function base64UrlEncodeUtf8(input: string): string {
 
 export default function LoginPage() {
   useEffect(() => {
-    const ref = new URLSearchParams(window.location.search).get('ref')?.trim() || ''
+    const params = new URLSearchParams(window.location.search)
+    let ref = (params.get('ref') ?? '').trim()
+    if (!ref) {
+      try {
+        ref = (sessionStorage.getItem('signup_ref') ?? '').trim()
+      } catch {
+        ref = ''
+      }
+    }
+    const safeRef = validateSlug(ref) ? ref : ''
+    if (safeRef) {
+      try {
+        sessionStorage.setItem('signup_ref', safeRef)
+      } catch {
+        // ignore
+      }
+    }
     const nonce = Math.random().toString(36).substring(2) + Date.now().toString(36)
-    const state = base64UrlEncodeUtf8(JSON.stringify({ nonce, ref }))
+    const state = base64UrlEncodeUtf8(JSON.stringify({ nonce, ref: safeRef }))
     persistLineOAuthState(state)
 
-    const params = new URLSearchParams({
+    const lineParams = new URLSearchParams({
       response_type: 'code',
       client_id: process.env.NEXT_PUBLIC_LINE_CLIENT_ID!,
       redirect_uri: process.env.NEXT_PUBLIC_LINE_CALLBACK_URL!,
@@ -28,7 +45,7 @@ export default function LoginPage() {
       scope: 'profile openid',
     })
 
-    window.location.href = `https://access.line.me/oauth2/v2.1/authorize?${params}`
+    window.location.href = `https://access.line.me/oauth2/v2.1/authorize?${lineParams}`
   }, [])
 
   return (

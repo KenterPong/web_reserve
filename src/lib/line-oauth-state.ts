@@ -7,6 +7,17 @@ function cookieDomainAttr(): string {
   if (fromEnv) return `; domain=${fromEnv}`
   const host = window.location.hostname
   if (host === 'lvh.me' || host.endsWith('.lvh.me')) return '; domain=.lvh.me'
+
+  // 正式網域：讓 www / apex / 子網域共用同一顆 state cookie，避免使用者從 apex 進站但 LINE Callback 在 www 時讀不到 state
+  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim().toLowerCase()
+  if (root && host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.vercel.app')) {
+    const onThisRoot =
+      host === root ||
+      host === `www.${root}` ||
+      host.endsWith(`.${root}`)
+    if (onThisRoot) return `; domain=.${root}`
+  }
+
   return ''
 }
 
