@@ -108,7 +108,10 @@ export default function AppointmentsPage() {
     if (!opts.silent) setIsLoading(true)
     try {
       const res = await fetch(`/api/appointments?month=${currentMonth}`)
-      if (res.status === 401) { window.location.href = '/auth/login'; return }
+      if (res.status === 401) {
+        window.location.href = '/api/auth/line-bootstrap'
+        return
+      }
       const data = await res.json()
       setAppointments(data.appointments ?? [])
     } catch {

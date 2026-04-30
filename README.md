@@ -206,7 +206,7 @@ src/
 │   ├── worker-profile/           # 個人介紹（middleware rewrite）
 │   ├── booking/                  # AI 預約（rewrite；內含時段選擇、查詢預約、聯絡表單）
 │   ├── dashboard/                # 後台（appointments 日曆、profile 設定）
-│   ├── auth/login、auth/callback # LINE OAuth 導向與回傳頁
+│   ├── api/auth/line-bootstrap、auth/login、auth/callback # LINE OAuth（cookie 須在 Route Handler 寫入）
 │   └── api/
 │       ├── chat/                 # Claude 對話 + session／rate limit
 │       ├── appointments/       # GET／POST；lookup；manage；[id] PATCH

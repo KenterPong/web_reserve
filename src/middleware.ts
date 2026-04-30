@@ -55,7 +55,7 @@ export function middleware(req: NextRequest) {
   if (pathname.startsWith('/dashboard')) {
     const workerId = req.cookies.get('worker_id')?.value
     if (!workerId) {
-      return NextResponse.redirect(new URL('/auth/login', req.url))
+      return NextResponse.redirect(new URL('/api/auth/line-bootstrap', req.url))
     }
   }
 
@@ -67,7 +67,7 @@ export function middleware(req: NextRequest) {
 
   const hostWorkerSlug = extractWorkerSlugFromHost(host)
 
-  // 推薦連結：導向登入並帶 ref（內部仍用 /auth/login?ref=，LINE OAuth state 不依賴網址 query）
+  // 推薦連結：導向 line-bootstrap（寫 cookie + 導 LINE 或 in-app 頁；不可只進 /auth/login page 因 cookies().set 須在 Route Handler）
   // 1) 舊版：www?ref=slug（部分 LINE 內建瀏覽器會丟 query）
   // 2) 建議：www/{slug} 或 apex {slug}（路徑較不易被吃掉）；僅在主站 host，不在工作者子網域
   if (!hostWorkerSlug && isMainMarketingHost(hostname)) {
@@ -75,7 +75,7 @@ export function middleware(req: NextRequest) {
       const ref = req.nextUrl.searchParams.get('ref')?.trim() ?? ''
       if (ref && validateSlug(ref)) {
         const dest = new URL(req.url)
-        dest.pathname = '/auth/login'
+        dest.pathname = '/api/auth/line-bootstrap'
         dest.search = `?ref=${encodeURIComponent(ref)}`
         return NextResponse.redirect(dest)
       }
@@ -86,7 +86,7 @@ export function middleware(req: NextRequest) {
       const seg = one[1]!.toLowerCase()
       if (!RESERVED_PATH_SEGMENTS.has(seg) && validateSlug(seg)) {
         const dest = new URL(req.url)
-        dest.pathname = '/auth/login'
+        dest.pathname = '/api/auth/line-bootstrap'
         dest.search = `?ref=${encodeURIComponent(seg)}`
         return NextResponse.redirect(dest)
       }

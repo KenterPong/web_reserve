@@ -33,7 +33,7 @@ export default function ProfilePage() {
   useEffect(() => {
     fetch('/api/appointments?month=2099-01') // Use appointments endpoint just to check auth
       .then(res => {
-        if (res.status === 401) window.location.href = '/auth/login'
+        if (res.status === 401) window.location.href = '/api/auth/line-bootstrap'
       })
 
     // Fetch own worker profile

@@ -92,7 +92,7 @@ function CallbackHandler() {
         <div className="text-center space-y-4">
           <p className="text-red-500">登入失敗，請重試</p>
           {errorMessage ? <p className="text-gray-500 text-sm">{errorMessage}</p> : null}
-          <a href="/auth/login" className="text-green-600 text-sm underline">
+          <a href="/api/auth/line-bootstrap" className="text-green-600 text-sm underline">
             返回登入
           </a>
         </div>
