@@ -2,6 +2,16 @@
 
 > **進度彙報：** 見根目錄 `PROGRESS.md`（與本清單同步維護）。
 
+### 今日進度（2026-04-30）
+
+- [x] **推薦登入流程**：主站 `/{slug}`、`/?ref=` 先 **rewrite** 至 **`/join`**（確認／手填推薦代碼）→ `POST /api/auth/referral-intent` 寫 **httpOnly** `referral_slug_intent` → `GET /api/auth/line-bootstrap` 合併 query／cookie 寫入 OAuth `state` 後導 LINE（in-app 仍走 `/auth/login/in-app` 彈窗）
+- [x] **LINE 登入 500 修正**：`cookies().set` 不可在 Server Component；改由 **`/api/auth/line-bootstrap`**（Route Handler）寫 `line_oauth_state`；`/auth/login` 僅轉址
+- [x] **middleware**：apex 兩段 hostname 不再誤判 worker slug；`/auth/callback` host 與 `NEXT_PUBLIC_LINE_CALLBACK_URL` 不一致時 **307** 對齊；保留路徑 `join` 為保留字
+- [x] **`POST /api/auth/callback` 推薦寫 DB**：`validateSlug`、`maybeSingle` 查推薦人；回傳 **`referralStatus`** 利除錯；**僅首次登入**（該 LINE 尚無 `workers` 列）才寫 `referred_by`／遞增 `referral_count`
+- [x] **Supabase**：新增可重複執行 migration `supabase/migrations/20250430120000_workers_referral_columns.sql`（補 `referral_count`／`referred_by`）；正式庫已 SQL 執行驗證
+- [x] **手動驗證**：清測試帳後以推薦連結 + **新 LINE 首次登入**，`referred_by`／`referral_count` 欄位更新正確
+- [x] **文件**：`README` 推薦／登入路徑說明同步今日行為
+
 ### 今日進度（2026-04-27）
 
 - [x] **子網域導流修正**：個人介紹頁「立即預約」改為使用相對路徑 `/booking`，避免跳回 `project-*.vercel.app`
@@ -111,7 +121,7 @@
 
 
 ### 解鎖功能導覽列（/dashboard 頂部）
-> 位置：後台頁面頂部中間紅框區域（目前空白處）
+> 位置：後台 `/dashboard/appointments` 頂部（與分享／通知同一列區域）
 
 **導覽列結構**
 ```
@@ -119,29 +129,29 @@
 ```
 
 **行為規格**
-- [ ] 🏠 首頁 icon：點擊回到行事曆（預約管理）
-- [ ] 解鎖 icon × 3：依推薦人數依序排列（黑名單→參考圖→簡訊通知）
+- [x] 🏠 首頁 icon：點擊回到行事曆（預約管理；Dashboard 根路徑已導向 `/dashboard/appointments`）
+- [x] 解鎖 icon × 3：依推薦人數依序排列（黑名單→參考圖→簡訊通知）
   - **未解鎖**：icon 灰色半透明；點擊展開功能說明 + 複製推薦連結按鈕
-  - **已解鎖**：icon 全彩；點擊展開功能入口
-- [ ] icon 樣式細節由工程師決定，方向確認即可
-- [ ] DB：`workers.referral_count` 欄位供前端讀取解鎖狀態
+  - **已解鎖**：icon 全彩；點擊展開功能入口（黑名單／簡訊仍為佔位文案）
+- [x] icon 樣式細節由工程師決定，方向確認即可
+- [x] DB：`workers.referral_count` 欄位供前端讀取解鎖狀態（`GET /api/workers/me`；舊庫可跑 migration 補欄位）
 
 **導覽列下方一行動態提示文字**
-- [ ] 永遠只顯示「距離下一個未解鎖功能」的進度，置中小字灰色
-- [ ] 邏輯：
+- [x] 永遠只顯示「距離下一個未解鎖功能」的進度，置中小字灰色
+- [x] 邏輯：
   - `referral_count < 5`  → 「目前 X 人　還差 Y 人可解鎖 🚫 黑名單功能」
   - `5 ≤ referral_count < 10` → 「目前 X 人　還差 Y 人可解鎖 🖼️ 參考圖功能」
   - `10 ≤ referral_count < 15` → 「目前 X 人　還差 Y 人可解鎖 💬 簡訊通知功能」
   - `referral_count ≥ 15` → 文字隱藏（全部解鎖）
 
 **分享彈窗（新增推薦區塊）**
-- [ ] 現有區塊（頂部）：顧客預約連結 + 複製按鈕 + QR Code
-- [ ] 新增區塊（QR Code 下方，加分隔線）：
+- [x] 現有區塊（頂部）：顧客預約連結 + 複製按鈕 + QR Code
+- [x] 新增區塊（QR Code 下方，加分隔線）：
   - 標題：「推薦設計師加入」
   - 說明文字：「把連結分享給其他設計師，他們加入後自動計入你的推薦紀錄」
   - 推薦連結：`https://www.mybookdate.com/{slug}`（路徑形式，避免 LINE 內建瀏覽器吃掉 `?ref=`；舊版 `?ref=` 仍相容）
   - 「複製推薦連結」按鈕
-- [ ] 後端：`POST /api/auth/callback` 首次登入時讀取 `?ref=` 參數，對應工作者 slug 找到 `worker_id`，執行 `referral_count + 1`
+- [x] 後端：`POST /api/auth/callback` 於**首次登入**依 OAuth `state` 內之 `ref`（slug）對應推薦人，寫 `referred_by` 並 `referral_count + 1`（回傳 `referralStatus`）
 
 **解鎖門檻**
 | 推薦人數 | 功能 | icon |

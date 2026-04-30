@@ -8,6 +8,8 @@
 
 **實作進度：** 以 `to-do-list.md` 勾選為準；階段彙報見 **`PROGRESS.md`**。
 
+**近期實作紀要（2026-04-30）**：推薦連結先進 **`/join`** 確認代碼（httpOnly `referral_slug_intent`）再 **`/api/auth/line-bootstrap`** 導 LINE；OAuth `state` 仍帶 `ref`；`POST /api/auth/callback` 僅**首次登入**寫 `referred_by`／遞增 `referral_count`（回傳 `referralStatus`）；舊 Supabase 可執行 `supabase/migrations/20250430120000_workers_referral_columns.sql` 補欄位。
+
 > **安全：** 切勿將 Supabase／LINE／Anthropic 金鑰寫入版本庫。若曾誤提交，請立即於各平台**輪替金鑰**。
 
 ### 目標族群
@@ -93,9 +95,10 @@ https://www.mybookdate.com/[slug]
 ```
 
 **推薦計數邏輯：**
-- 新工作者透過推薦連結（建議 `https://www.網域/{slug}`；相容舊版 `?ref=slug`）進入並完成 LINE 登入
-- `POST /api/auth/callback` 讀取 `ref` 參數，找到對應工作者，執行 `referral_count + 1`
-- 同一 LINE 帳號只計算一次（首次登入時判斷）
+- 新工作者透過推薦連結（建議 `https://www.網域/{slug}`；相容舊版 `?ref=slug`）進入 → middleware **rewrite** 至 **`/join?ref=`**（網址列可仍顯示 `/{slug}`）→ 確認或手填代碼 → `POST /api/auth/referral-intent` 寫 cookie → **`/api/auth/line-bootstrap`** 產 OAuth `state`（內含 `ref`）並導向 LINE
+- `POST /api/auth/callback` 自 `state` 還原 `ref`（slug），以 **`workers.slug`** 找推薦人；僅該 LINE **首次**建立 `workers` 列時寫入 **`referred_by`** 並為推薦人 **`referral_count + 1`**；回應含 **`referralStatus`**（`applied`／`skipped_*`）供除錯
+- 推薦人須已在後台個人檔儲存**相同** slug，否則不計入（見 `skipped_no_referrer`）
+- 同一 LINE 帳號只計算一次（非首次登入不會再寫推薦）
 
 ### 解鎖功能規劃
 
@@ -199,14 +202,15 @@ jessica.yourdomain.com
 
 ```
 src/
-├── middleware.ts                 # 子網域 host 解析 + rewrite；保護 /dashboard
+├── middleware.ts                 # 子網域 rewrite；主站推薦路徑 rewrite /join；保護 /dashboard；callback host 對齊
 ├── app/
 │   ├── page.tsx                  # 平台首頁（www）
+│   ├── join/                     # 推薦代碼確認頁（→ referral-intent cookie → line-bootstrap）
 │   ├── privacy/、terms/          # 隱私權、服務條款
 │   ├── worker-profile/           # 個人介紹（middleware rewrite）
 │   ├── booking/                  # AI 預約（rewrite；內含時段選擇、查詢預約、聯絡表單）
 │   ├── dashboard/                # 後台（appointments 日曆、profile 設定）
-│   ├── api/auth/line-bootstrap、auth/login、auth/callback # LINE OAuth（cookie 須在 Route Handler 寫入）
+│   ├── api/auth/line-bootstrap、referral-intent、auth/login、auth/callback # LINE OAuth（Set-Cookie 僅 Route Handler）
 │   └── api/
 │       ├── chat/                 # Claude 對話 + session／rate limit
 │       ├── appointments/       # GET／POST；lookup；manage；[id] PATCH
@@ -217,9 +221,12 @@ src/
 │   ├── supabase.ts、supabase-admin.ts、claude.ts、utils.ts
 │   ├── datetime-taipei.ts        # 台北日曆／星期（預約與 chat 共用）
 │   ├── rate-limit.ts             # MVP 程序內計數（上線可換 Redis）
-│   └── line-oauth-state.ts       # LINE state：cookie 跨子網域（.lvh.me 等）
+│   ├── line-oauth-state.ts       # LINE state：cookie 跨子網域（.lvh.me 等）
+│   ├── referral-intent-cookie.ts # 推薦 slug httpOnly（進 LINE 前）
+│   └── line-login-oauth.ts       # authorize URL、state 編碼、in-app UA 偵測
 ├── types/index.ts
 supabase/schema.sql               # PostgreSQL schema（路線 A：REVOKE anon 等）
+supabase/migrations/              # 可重複執行補欄位（例：referral_count／referred_by）
 to-do-list.md                     # 實作勾選清單
 PROGRESS.md                       # 階段進度彙報（與 to-do 對照）
 ```
