@@ -35,7 +35,7 @@
 - [x] **驗證**：正式網址首頁、`/auth/login`、後台 `/dashboard/appointments`、預約流程 **以 `?slug=` 在 `project-c8c8z.vercel.app` 上測試通過**
 - [x] **自訂網域**：購買 `mybookdate.com`（Cloudflare Registrar，$10.46/年）
 - [x] **DNS 設定（目前可用）**：Cloudflare DNS 三筆 CNAME 指向 Vercel（已可正常訪問 `www` 與子網域）
-- [ ] **DNS/SSL 建議調整（降低風險）**：所有指向 Vercel 的記錄（`@`/`www`/`*`）建議改為 **DNS only（灰雲）**；Cloudflare SSL/TLS 建議改 **Full (strict)**（避免 Flexible/Proxied 造成回源/憑證/重導不穩）
+- [x] **DNS／部署（正式環境）**：Vercel 部署與 Cloudflare DNS 已就緒；`www`、apex 與 **`*.mybookdate.com` 子網域** 可正常解析與訪問 ✅（後續若仍要最佳化，可再評估灰雲／Full strict）
 - [x] **子網域驗證**：`kenter.mybookdate.com` 正常顯示個人介紹頁（頭像、簡介、營業時間、立即預約按鈕）✅
 - [x] **更新環境變數/Callback**：`NEXT_PUBLIC_APP_URL`、`LINE_CALLBACK_URL` / `NEXT_PUBLIC_LINE_CALLBACK_URL` 改為 `https://www.mybookdate.com`，並同步更新 LINE Console Callback URL
 - [ ] **待後續**：完整預約流程在正式網域驗證（含 LINE 登入、預約對話）
@@ -209,7 +209,7 @@
 - [x] anon key 直接查 `workers` 資料表回傳 permission denied ✅
 - [x] `mybookdate.com` 308 redirect 到 `www.mybookdate.com` ✅
 - [x] Cloudflare DNS（現況驗證）：`www` 與子網域可正常解析並可訪問 ✅
-- [ ] Cloudflare DNS/SSL（建議最佳實務）：`@`/`www`/`*` 全部灰雲（DNS only）；SSL/TLS 使用 Full (strict)
+- [x] Cloudflare DNS（正式環境）：`www` 與子網域已連線 Vercel、行為正常 ✅（與上列 DNS／部署項一致）
 - [x] `/privacy` 與 `/terms` 頁面存在且可正常訪問
 - [x] 預約完成後確認頁顯示完整資訊（工作者電話、日期時間、截圖提示）
 - [x] 電話查詢：輸入正確電話可查到未來預約，不顯示歷史紀錄

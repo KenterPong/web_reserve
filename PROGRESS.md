@@ -36,7 +36,7 @@
 - Supabase **Storage** `reference-images`（Private）與參考圖 signed URL、上傳限制。  
 - **撤銷 anon** 等 SQL（`supabase/schema.sql` 文末）：若尚未執行請補跑。  
 - Rate limit 上線強化：**Upstash Redis**（README 已列建議）。  
-- Footer 客服、部署後測試清單（301、灰雲 DNS 等）、正式網域完整預約＋LINE 流程回歸測試。  
+- Footer 客服、正式網域完整預約＋ LINE 流程回歸測試（DNS／子網域已驗證 ✅）。  
 - **LINE `access.line.me` 連線問題**：屬使用者網路／內建瀏覽器限制，產品面以 `/join` 外開與文案引導為主。  
 
 ---
