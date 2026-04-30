@@ -8,6 +8,8 @@ import {
 } from '@/lib/line-oauth-state'
 import { validateSlug } from '@/lib/utils'
 
+import { LineLoginInAppModal } from './line-login-in-app-modal'
+
 export const dynamic = 'force-dynamic'
 
 function base64UrlEncodeUtf8(input: string): string {
@@ -88,32 +90,8 @@ export default async function LoginPage({
 
   if (preferManualLineLoginNavigation(ua)) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-6">
-        <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <span className="text-white font-bold text-xl">LINE</span>
-        </div>
-        <h1 className="text-gray-900 font-semibold text-center mb-2">完成 LINE 登入</h1>
-        <p className="text-gray-600 text-sm text-center mb-2 max-w-md">
-          你目前可能正在 LINE、Facebook 或 Instagram 的內建瀏覽器中；請<strong>點下方綠色按鈕</strong>繼續（系統會盡量改以外部瀏覽器開啟）。
-        </p>
-        <p className="text-gray-500 text-xs text-center mb-6 max-w-md">
-          若出現「無法連上網站」或連線中斷，請點右上角 <span className="whitespace-nowrap">⋯</span> 選「在
-          Safari／Chrome 開啟」，再重新開啟分享連結。
-        </p>
-        <a
-          href={authorizeUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center rounded-xl bg-[#06C755] px-8 py-3 text-white font-semibold shadow"
-        >
-          前往 LINE 登入
-        </a>
-        <a
-          href={authorizeUrl}
-          className="mt-4 text-xs text-gray-500 underline underline-offset-2"
-        >
-          改在目前視窗開啟
-        </a>
+      <div className="min-h-screen bg-gray-100">
+        <LineLoginInAppModal authorizeUrl={authorizeUrl} />
       </div>
     )
   }
