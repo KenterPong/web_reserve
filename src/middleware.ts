@@ -9,6 +9,7 @@ const RESERVED_PATH_SEGMENTS = new Set([
   'auth',
   'booking',
   'dashboard',
+  'join',
   'privacy',
   'terms',
   'worker-profile',
@@ -82,17 +83,15 @@ export function middleware(req: NextRequest) {
 
   const hostWorkerSlug = extractWorkerSlugFromHost(host)
 
-  // 推薦連結：導向 line-bootstrap（寫 cookie + 導 LINE 或 in-app 頁；不可只進 /auth/login page 因 cookies().set 須在 Route Handler）
-  // 1) 舊版：www?ref=slug（部分 LINE 內建瀏覽器會丟 query）
-  // 2) 建議：www/{slug} 或 apex {slug}（路徑較不易被吃掉）；僅在主站 host，不在工作者子網域
+  // 推薦連結：先內部 rewrite 到 /join（確認或手寫 slug，再 POST referral-intent → line-bootstrap）
+  // 1) 舊版：/?ref=slug  2) 路徑：/{slug}。rewrite 可保留網址列為 /{slug} 或 /?ref=
   if (!hostWorkerSlug && isMainMarketingHost(hostname)) {
     if (pathname === '/') {
       const ref = req.nextUrl.searchParams.get('ref')?.trim() ?? ''
       if (ref && validateSlug(ref)) {
-        const dest = new URL(req.url)
-        dest.pathname = '/api/auth/line-bootstrap'
-        dest.search = `?ref=${encodeURIComponent(ref)}`
-        return NextResponse.redirect(dest)
+        return NextResponse.rewrite(
+          new URL(`/join?ref=${encodeURIComponent(ref)}`, req.url),
+        )
       }
     }
 
@@ -100,10 +99,9 @@ export function middleware(req: NextRequest) {
     if (one) {
       const seg = one[1]!.toLowerCase()
       if (!RESERVED_PATH_SEGMENTS.has(seg) && validateSlug(seg)) {
-        const dest = new URL(req.url)
-        dest.pathname = '/api/auth/line-bootstrap'
-        dest.search = `?ref=${encodeURIComponent(seg)}`
-        return NextResponse.redirect(dest)
+        return NextResponse.rewrite(
+          new URL(`/join?ref=${encodeURIComponent(seg)}`, req.url),
+        )
       }
     }
   }
