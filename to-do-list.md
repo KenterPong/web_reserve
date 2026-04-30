@@ -139,7 +139,7 @@
 - [ ] 新增區塊（QR Code 下方，加分隔線）：
   - 標題：「推薦設計師加入」
   - 說明文字：「把連結分享給其他設計師，他們加入後自動計入你的推薦紀錄」
-  - 推薦連結：`https://www.mybookdate.com?ref={slug}`（slug 為工作者自己的 slug）
+  - 推薦連結：`https://www.mybookdate.com/{slug}`（路徑形式，避免 LINE 內建瀏覽器吃掉 `?ref=`；舊版 `?ref=` 仍相容）
   - 「複製推薦連結」按鈕
 - [ ] 後端：`POST /api/auth/callback` 首次登入時讀取 `?ref=` 參數，對應工作者 slug 找到 `worker_id`，執行 `referral_count + 1`
 

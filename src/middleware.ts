@@ -4,6 +4,16 @@ import { validateSlug } from '@/lib/utils'
 
 const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? '').toLowerCase()
 
+/** 主網域單一路徑段若與 App 路由同名，不可當成推薦 slug（避免誤轉） */
+const RESERVED_PATH_SEGMENTS = new Set([
+  'auth',
+  'booking',
+  'dashboard',
+  'privacy',
+  'terms',
+  'worker-profile',
+])
+
 function isMainMarketingHost(hostname: string): boolean {
   if (ROOT_DOMAIN) {
     return hostname === `www.${ROOT_DOMAIN}` || hostname === ROOT_DOMAIN
@@ -34,7 +44,7 @@ function extractSlug(host: string): string | null {
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') ?? ''
   const hostname = host.split(':')[0].toLowerCase()
-  const { pathname } = req.nextUrl
+  const pathname = req.nextUrl.pathname.replace(/\/+$/, '') || '/'
 
   // Protect /dashboard pages — API routes validate their own cookies
   if (pathname.startsWith('/dashboard')) {
@@ -50,14 +60,29 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // 從 LINE 點「推薦連結」通常會直接開啟 www?ref=slug；導向登入頁，避免使用者沒按首頁按鈕就丟失 ref
-  if (pathname === '/' && isMainMarketingHost(hostname)) {
-    const ref = req.nextUrl.searchParams.get('ref')?.trim() ?? ''
-    if (ref && validateSlug(ref)) {
-      const dest = new URL(req.url)
-      dest.pathname = '/auth/login'
-      dest.search = `?ref=${encodeURIComponent(ref)}`
-      return NextResponse.redirect(dest)
+  // 推薦連結：導向登入並帶 ref（內部仍用 /auth/login?ref=，LINE OAuth state 不依賴網址 query）
+  // 1) 舊版：www?ref=slug（部分 LINE 內建瀏覽器會丟 query）
+  // 2) 建議：www/{slug}（路徑較不易被吃掉）
+  if (isMainMarketingHost(hostname)) {
+    if (pathname === '/') {
+      const ref = req.nextUrl.searchParams.get('ref')?.trim() ?? ''
+      if (ref && validateSlug(ref)) {
+        const dest = new URL(req.url)
+        dest.pathname = '/auth/login'
+        dest.search = `?ref=${encodeURIComponent(ref)}`
+        return NextResponse.redirect(dest)
+      }
+    }
+
+    const one = pathname.match(/^\/([^/]+)$/)
+    if (one) {
+      const seg = one[1]!.toLowerCase()
+      if (!RESERVED_PATH_SEGMENTS.has(seg) && validateSlug(seg)) {
+        const dest = new URL(req.url)
+        dest.pathname = '/auth/login'
+        dest.search = `?ref=${encodeURIComponent(seg)}`
+        return NextResponse.redirect(dest)
+      }
     }
   }
 

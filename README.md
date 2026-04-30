@@ -87,12 +87,13 @@ https://[slug].mybookdate.com
 推薦設計師加入
 把連結分享給其他設計師，他們加入後自動計入你的推薦紀錄
 
-https://www.mybookdate.com?ref=[slug]
+https://www.mybookdate.com/[slug]
+（推薦連結使用路徑，避免部分 LINE 內建瀏覽器吃掉 `?ref=` 參數；舊版 `?ref=` 仍相容）
 [ 複製推薦連結 ]
 ```
 
 **推薦計數邏輯：**
-- 新工作者透過推薦連結（`?ref=slug`）進入並完成 LINE 登入
+- 新工作者透過推薦連結（建議 `https://www.網域/{slug}`；相容舊版 `?ref=slug`）進入並完成 LINE 登入
 - `POST /api/auth/callback` 讀取 `ref` 參數，找到對應工作者，執行 `referral_count + 1`
 - 同一 LINE 帳號只計算一次（首次登入時判斷）
 

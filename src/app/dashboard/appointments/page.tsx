@@ -183,9 +183,9 @@ export default function AppointmentsPage() {
 
   const referralUrl =
     mySlug && rootDomain
-      ? `https://www.${rootDomain}?ref=${encodeURIComponent(mySlug)}`
-      : mySlug
-        ? `${window.location.protocol}//${window.location.host.replace(/^www\./, '')}?ref=${encodeURIComponent(mySlug)}`
+      ? `https://www.${rootDomain}/${mySlug}`
+      : mySlug && typeof window !== 'undefined' && window.location.hostname.startsWith('www.')
+        ? `${window.location.origin}/${mySlug}`
         : ''
 
   function handleCopyShareUrl() {

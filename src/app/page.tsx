@@ -9,7 +9,8 @@ export default function HomePage({ searchParams }: HomeProps) {
   const rawRef = searchParams.ref
   const refParam = typeof rawRef === 'string' ? rawRef.trim() : ''
   const refForLogin = validateSlug(refParam) ? refParam : ''
-  const loginHref = refForLogin ? `/auth/login?ref=${encodeURIComponent(refForLogin)}` : '/auth/login'
+  // 推薦用路徑 /{slug}，避免 LINE 內建瀏覽器吃掉 ?ref=；middleware 會轉到 /auth/login?ref=
+  const loginHref = refForLogin ? `/${refForLogin}` : '/auth/login'
 
   return (
     <div className="min-h-screen bg-white">
