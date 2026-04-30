@@ -51,6 +51,21 @@ export function middleware(req: NextRequest) {
   const hostname = host.split(':')[0].toLowerCase()
   const pathname = req.nextUrl.pathname.replace(/\/+$/, '') || '/'
 
+  // LINE 授權完成後會導回 redirect_uri 的 host；若與目前請求 host 不一致（常見：www vs apex），
+  // 可能落到未對外設定的網域而 404。將 /auth/callback 統一導向 NEXT_PUBLIC_LINE_CALLBACK_URL 的 origin。
+  const lineCallbackBase = process.env.NEXT_PUBLIC_LINE_CALLBACK_URL?.trim()
+  if (lineCallbackBase && pathname.startsWith('/auth/callback')) {
+    try {
+      const expected = new URL(lineCallbackBase)
+      if (hostname !== expected.hostname.toLowerCase()) {
+        const dest = new URL(req.nextUrl.pathname + req.nextUrl.search, expected.origin)
+        return NextResponse.redirect(dest)
+      }
+    } catch {
+      // 無效的 callback env 略過
+    }
+  }
+
   // Protect /dashboard pages — API routes validate their own cookies
   if (pathname.startsWith('/dashboard')) {
     const workerId = req.cookies.get('worker_id')?.value
