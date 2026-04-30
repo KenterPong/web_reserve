@@ -23,11 +23,13 @@ export default function AppointmentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [workerId, setWorkerId] = useState<string>('')
   const [mySlug, setMySlug] = useState<string>('')
+  const [referralCount, setReferralCount] = useState<number>(0)
   const [shareOpen, setShareOpen] = useState(false)
   const [copyMsg, setCopyMsg] = useState('')
   const [notifyOpen, setNotifyOpen] = useState(false)
   const [lastSeenAt, setLastSeenAt] = useState<number>(0)
   const [readKeys, setReadKeys] = useState<Record<string, true>>({})
+  const [unlockOpen, setUnlockOpen] = useState<null | 'blacklist' | 'referenceImage' | 'sms'>(null)
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date()
     const y = now.getFullYear()
@@ -60,6 +62,7 @@ export default function AppointmentsPage() {
         const w = data?.worker
         setMySlug(w?.slug ?? '')
         setWorkerId(w?.id ?? '')
+        setReferralCount(Number(w?.referral_count ?? 0))
       })
       .catch(() => {})
   }, [])
@@ -123,6 +126,20 @@ export default function AppointmentsPage() {
     fetchAppointments({ silent: true })
   }
 
+  async function openReferenceImage(appointmentId: string) {
+    try {
+      const res = await fetch(`/api/reference-image/signed?appointmentId=${encodeURIComponent(appointmentId)}`)
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data?.error || '取得參考圖失敗')
+        return
+      }
+      if (data?.url) window.open(String(data.url), '_blank', 'noopener,noreferrer')
+    } catch {
+      alert('取得參考圖失敗')
+    }
+  }
+
   function getDaysInMonth() {
     const [year, month] = currentMonth.split('-').map(Number)
     const count = new Date(year, month, 0).getDate()
@@ -163,6 +180,13 @@ export default function AppointmentsPage() {
         ? `${window.location.protocol}//${mySlug}.${window.location.host.replace(/^www\./, '')}`
         : ''
 
+  const referralUrl =
+    mySlug && rootDomain
+      ? `https://www.${rootDomain}?ref=${encodeURIComponent(mySlug)}`
+      : mySlug
+        ? `${window.location.protocol}//${window.location.host.replace(/^www\./, '')}?ref=${encodeURIComponent(mySlug)}`
+        : ''
+
   async function handleCopyShareUrl() {
     if (!shareUrl) return
     try {
@@ -171,6 +195,30 @@ export default function AppointmentsPage() {
     } catch {
       setCopyMsg('複製失敗')
     }
+  }
+
+  async function handleCopyReferralUrl() {
+    if (!referralUrl) return
+    try {
+      await navigator.clipboard.writeText(referralUrl)
+      setCopyMsg('已複製')
+    } catch {
+      setCopyMsg('複製失敗')
+    }
+  }
+
+  function unlockNextText(n: number): string | null {
+    const x = Number.isFinite(n) ? n : 0
+    if (x < 5) return `目前 ${x} 人　還差 ${5 - x} 人可解鎖 🚫 黑名單功能`
+    if (x < 10) return `目前 ${x} 人　還差 ${10 - x} 人可解鎖 🖼️ 參考圖功能`
+    if (x < 15) return `目前 ${x} 人　還差 ${15 - x} 人可解鎖 💬 簡訊通知功能`
+    return null
+  }
+
+  function isUnlocked(kind: 'blacklist' | 'referenceImage' | 'sms'): boolean {
+    if (kind === 'blacklist') return referralCount >= 5
+    if (kind === 'referenceImage') return referralCount >= 10
+    return referralCount >= 15
   }
 
   function appointmentEventAtMs(a: Appointment): number {
@@ -200,12 +248,14 @@ export default function AppointmentsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm px-4 py-4 flex justify-between items-center">
-        <div>
+      <div className="bg-white shadow-sm px-4 py-4">
+        <div className="flex justify-between items-center">
+          <div>
           <h1 className="text-lg font-bold text-gray-800">預約管理</h1>
           <p className="text-xs text-gray-400">點選日期查看預約</p>
-        </div>
-        <div className="flex items-center gap-3">
+          </div>
+
+          <div className="flex items-center gap-3">
           <div className="relative">
             <button
               type="button"
@@ -277,7 +327,47 @@ export default function AppointmentsPage() {
           >
             分享
           </button>
+          <a href="/dashboard/insights" className="text-sm text-green-600 hover:text-green-700">洞察</a>
           <a href="/dashboard/profile" className="text-sm text-green-600 hover:text-green-700">設定</a>
+        </div>
+      </div>
+
+        {/* Unlock navbar */}
+        <div className="mt-3 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2">
+            <a
+              href="/dashboard/appointments"
+              className="w-9 h-9 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-700"
+              aria-label="回到行事曆"
+              title="回到行事曆"
+            >
+              🏠
+            </a>
+            {([
+              { kind: 'blacklist' as const, label: '🚫', title: '黑名單' },
+              { kind: 'referenceImage' as const, label: '🖼️', title: '參考圖' },
+              { kind: 'sms' as const, label: '💬', title: '簡訊通知' },
+            ]).map((it) => {
+              const ok = isUnlocked(it.kind)
+              return (
+                <button
+                  key={it.kind}
+                  type="button"
+                  onClick={() => setUnlockOpen(it.kind)}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                    ok ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-50 text-gray-400 opacity-60 hover:opacity-80'
+                  }`}
+                  aria-label={it.title}
+                  title={it.title}
+                >
+                  {it.label}
+                </button>
+              )
+            })}
+          </div>
+          {unlockNextText(referralCount) ? (
+            <p className="text-[11px] text-gray-400 text-center">{unlockNextText(referralCount)}</p>
+          ) : null}
         </div>
       </div>
 
@@ -330,10 +420,79 @@ export default function AppointmentsPage() {
                   客戶掃描後會直接開啟你的子網域預約頁
                 </p>
               </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-semibold text-gray-800">推薦設計師加入</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  把連結分享給其他設計師，他們加入後自動計入你的推薦紀錄
+                </p>
+                <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 mb-1">推薦連結</p>
+                  <p className="text-sm font-medium text-gray-800 break-all">
+                    {referralUrl || '尚未設定 slug（請到「設定」填寫專屬網址）'}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyReferralUrl}
+                      disabled={!referralUrl}
+                      className="px-3 py-2 rounded-lg bg-gray-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-gray-800 transition-colors"
+                    >
+                      複製推薦連結
+                    </button>
+                    {copyMsg ? <span className="text-xs text-gray-500">{copyMsg}</span> : null}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {unlockOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setUnlockOpen(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white shadow-lg p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-gray-800">
+                {unlockOpen === 'blacklist' ? '🚫 黑名單功能' : unlockOpen === 'referenceImage' ? '🖼️ 參考圖功能' : '💬 簡訊通知功能'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setUnlockOpen(null)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                aria-label="關閉"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-3 text-sm text-gray-600 space-y-2">
+              {!isUnlocked(unlockOpen) ? (
+                <>
+                  <p>此功能尚未解鎖。</p>
+                  <p className="text-xs text-gray-500">把推薦連結分享給其他設計師，他們完成加入後就會計入推薦數。</p>
+                  <button
+                    type="button"
+                    onClick={handleCopyReferralUrl}
+                    disabled={!referralUrl}
+                    className="mt-2 w-full px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-gray-800 transition-colors"
+                  >
+                    複製推薦連結
+                  </button>
+                </>
+              ) : (
+                <p className="text-green-700 font-medium">已解鎖（入口開發中）。</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
         {/* Calendar */}
@@ -412,6 +571,15 @@ export default function AppointmentsPage() {
                         {apt.customer_phone}
                       </a>
                       {apt.note && <p className="text-xs text-gray-400 mt-1">{apt.note}</p>}
+                      {apt.reference_image_url ? (
+                        <button
+                          type="button"
+                          onClick={() => openReferenceImage(apt.id)}
+                          className="mt-2 inline-flex items-center text-xs text-green-700 hover:text-green-800 underline underline-offset-2"
+                        >
+                          🖼️ 查看參考圖
+                        </button>
+                      ) : null}
                     </div>
 
                     {apt.status === 'confirmed' && (

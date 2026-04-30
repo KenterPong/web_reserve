@@ -13,6 +13,7 @@ interface WorkerPublic {
   avatar_url?: string | null
   contact_phone?: string | null
   working_hours_exceptions?: Record<string, boolean>
+  referral_count?: number
 }
 
 interface PendingBooking {
@@ -26,6 +27,7 @@ type WorkingHours = Record<
 >
 
 interface CompletedAppointment {
+  appointmentId: string
   manageToken: string
   date: string
   time: string
@@ -133,6 +135,9 @@ function BookingChat() {
   const [rescheduleTime, setRescheduleTime] = useState('')
   const [reschedulePartySize, setReschedulePartySize] = useState('1')
   const [rescheduleServiceItem, setRescheduleServiceItem] = useState('')
+  const [referenceFile, setReferenceFile] = useState<File | null>(null)
+  const [referenceUploadMsg, setReferenceUploadMsg] = useState('')
+  const [isReferenceUploading, setIsReferenceUploading] = useState(false)
   const [showLookup, setShowLookup] = useState(false)
   const [lookupPhone, setLookupPhone] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
@@ -383,6 +388,7 @@ function BookingChat() {
         const data = await res.json()
         sessionStorage.removeItem('booking_session_token')
         setCompleted({
+          appointmentId: String(data?.appointment?.id ?? ''),
           manageToken: data.manageToken,
           date: pendingBooking.proposedDate,
           time: pendingBooking.proposedTime,
@@ -425,6 +431,33 @@ function BookingChat() {
       setLookupError('網路錯誤，請稍後再試')
     } finally {
       setLookupLoading(false)
+    }
+  }
+
+  const canUploadReferenceImage = Number((worker as any)?.referral_count ?? 0) >= 10
+
+  const handleUploadReference = async () => {
+    if (!completed?.manageToken) return
+    if (!referenceFile) return
+    setReferenceUploadMsg('')
+    setIsReferenceUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('manageToken', completed.manageToken)
+      fd.append('customerPhone', customerPhone.trim())
+      fd.append('file', referenceFile)
+      const res = await fetch('/api/reference-image', { method: 'POST', body: fd })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setReferenceUploadMsg(data?.error || `上傳失敗（HTTP ${res.status}）`)
+        return
+      }
+      setReferenceUploadMsg('上傳成功')
+      setReferenceFile(null)
+    } catch {
+      setReferenceUploadMsg('網路錯誤，請稍後再試')
+    } finally {
+      setIsReferenceUploading(false)
     }
   }
 
@@ -554,6 +587,31 @@ function BookingChat() {
               <span className="ml-1 text-gray-400">尚未設定（請記下預約時間，或透過訊息與店家確認）</span>
             )}
           </p>
+
+          {!isCancelled && canUploadReferenceImage ? (
+            <div className="text-left rounded-xl border border-gray-100 bg-gray-50 p-3">
+              <p className="text-sm font-semibold text-gray-800">上傳參考圖（選填）</p>
+              <p className="text-xs text-gray-500 mt-1">可上傳一張 jpg/png（5MB 以內），讓工作者提前評估。</p>
+              <div className="mt-2 space-y-2">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  onChange={(e) => setReferenceFile(e.target.files?.[0] ?? null)}
+                  className="block w-full text-xs text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-white file:text-gray-700"
+                />
+                <button
+                  type="button"
+                  onClick={handleUploadReference}
+                  disabled={!completed?.manageToken || !referenceFile || isReferenceUploading}
+                  className="w-full px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-gray-800 transition-colors"
+                >
+                  {isReferenceUploading ? '上傳中...' : '上傳參考圖'}
+                </button>
+                {referenceUploadMsg ? <p className="text-xs text-gray-500">{referenceUploadMsg}</p> : null}
+              </div>
+            </div>
+          ) : null}
+
           <p className="text-xs text-gray-400">如需更改或取消，可直接在下方操作。</p>
 
           {manageMsg ? <p className="text-sm text-green-600">{manageMsg}</p> : null}

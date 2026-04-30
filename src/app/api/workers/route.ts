@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const { data: worker } = await supabaseAdmin
     .from('workers')
     .select(
-      'id, display_name, business_name, avatar_url, slug, bio, working_hours, working_hours_exceptions, slot_duration, is_active, contact_phone',
+      'id, display_name, business_name, avatar_url, slug, bio, working_hours, working_hours_exceptions, slot_duration, is_active, contact_phone, referral_count',
     )
     .eq('slug', slug)
     .eq('is_active', true)

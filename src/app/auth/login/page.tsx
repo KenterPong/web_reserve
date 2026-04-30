@@ -3,9 +3,21 @@
 import { useEffect } from 'react'
 import { persistLineOAuthState } from '@/lib/line-oauth-state'
 
+function base64UrlEncodeUtf8(input: string): string {
+  const bytes = new TextEncoder().encode(input)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 1) {
+    bin += String.fromCharCode(bytes[i]!)
+  }
+  const b64 = btoa(bin)
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
 export default function LoginPage() {
   useEffect(() => {
-    const state = Math.random().toString(36).substring(2) + Date.now().toString(36)
+    const ref = new URLSearchParams(window.location.search).get('ref')?.trim() || ''
+    const nonce = Math.random().toString(36).substring(2) + Date.now().toString(36)
+    const state = base64UrlEncodeUtf8(JSON.stringify({ nonce, ref }))
     persistLineOAuthState(state)
 
     const params = new URLSearchParams({

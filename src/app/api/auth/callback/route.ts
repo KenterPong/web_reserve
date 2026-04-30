@@ -5,7 +5,7 @@ export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
-    const { code } = await req.json()
+    const { code, ref } = await req.json()
 
     if (!code) {
       return NextResponse.json({ error: '缺少授權碼' }, { status: 400 })
@@ -76,6 +76,15 @@ export async function POST(req: NextRequest) {
 
     const profile = await profileRes.json()
 
+    // Check existing worker to determine "first login" reliably (upsert alone can't tell)
+    const { data: existingWorker } = await supabaseAdmin
+      .from('workers')
+      .select('id, referred_by')
+      .eq('line_user_id', profile.userId)
+      .maybeSingle()
+
+    const isFirstLogin = !existingWorker
+
     // UPSERT worker (line_user_id is the unique key)
     const { data: worker, error } = await supabaseAdmin
       .from('workers')
@@ -93,6 +102,34 @@ export async function POST(req: NextRequest) {
     if (error || !worker) {
       console.error('Worker upsert error:', error)
       return NextResponse.json({ error: '建立帳號失敗', details: error }, { status: 500 })
+    }
+
+    // Referral: only count on first login, and only if worker not already referred
+    const refSlug = typeof ref === 'string' ? ref.trim() : ''
+    if (isFirstLogin && refSlug) {
+      const { data: referrer } = await supabaseAdmin
+        .from('workers')
+        .select('id, slug, referral_count')
+        .eq('slug', refSlug)
+        .single()
+
+      if (referrer?.id && referrer.id !== worker.id) {
+        // Set referred_by exactly once (guards against retries)
+        const { data: updated, error: setRefErr } = await supabaseAdmin
+          .from('workers')
+          .update({ referred_by: referrer.id })
+          .eq('id', worker.id)
+          .is('referred_by', null)
+          .select('id')
+          .maybeSingle()
+
+        if (!setRefErr && updated?.id) {
+          await supabaseAdmin
+            .from('workers')
+            .update({ referral_count: Number(referrer.referral_count ?? 0) + 1 })
+            .eq('id', referrer.id)
+        }
+      }
     }
 
     // Set httpOnly session cookie

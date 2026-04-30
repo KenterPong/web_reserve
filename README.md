@@ -37,13 +37,64 @@
 
 | 項目 | 內容 |
 |------|------|
-| 定價 | 月費 NT$199／人，單一定價 |
+| 定價 | 月費 NT$199／人，單一定價（可另設早鳥優惠，但產品功能不分方案） |
 | 收款方式 | **MVP 階段人工收款（LINE Pay 轉帳）**；達到穩定用戶量後串接綠界金流 |
 | 解鎖機制 | 推薦新用戶完成註冊即解鎖進階功能，不額外收費 |
 | 平台成本 | Claude API + 伺服器，估計 NT$30～110／會員／月 |
 | 毛利空間 | 約 NT$90～170／會員／月 |
 
 > **成本假設**：每位工作者每月約 20～50 次對話，每次對話約 5～10 輪，以 claude-sonnet 定價估算。若對話量超出預期，優先考慮截斷對話歷史長度或快取 system prompt。
+
+
+### 解鎖功能導覽列
+
+後台頁面（`/dashboard`）頂部中間區域，放置解鎖功能導覽列：
+
+```
+[ 🏠 ] [ icon黑名單 ] [ icon參考圖 ] [ icon簡訊通知 ]
+```
+
+**行為：**
+- 🏠 點擊回到行事曆
+- 未解鎖 icon：灰色半透明，點擊展開功能說明 + 複製推薦連結按鈕
+- 已解鎖 icon：全彩，點擊展開功能入口
+- icon 樣式由工程師決定
+
+**解鎖判斷依據：** `workers.referral_count`
+
+**導覽列下方動態提示（一行文字，置中小字灰色）：**
+
+| referral_count | 顯示文字 |
+|---------------|---------|
+| 0～4 | 目前 X 人　還差 Y 人可解鎖 🚫 黑名單功能 |
+| 5～9 | 目前 X 人　還差 Y 人可解鎖 🖼️ 參考圖功能 |
+| 10～14 | 目前 X 人　還差 Y 人可解鎖 💬 簡訊通知功能 |
+| ≥15 | 隱藏（全部解鎖） |
+
+**分享彈窗結構：**
+```
+【顧客預約區塊】
+你的專屬連結
+https://[slug].mybookdate.com
+[ 複製連結 ]
+
+或讓客戶掃描 QR Code
+[ QR Code 圖片 ]
+客戶掃描後會直接開啟你的子網域預約頁
+
+────────────────
+【推薦設計師區塊（新增）】
+推薦設計師加入
+把連結分享給其他設計師，他們加入後自動計入你的推薦紀錄
+
+https://www.mybookdate.com?ref=[slug]
+[ 複製推薦連結 ]
+```
+
+**推薦計數邏輯：**
+- 新工作者透過推薦連結（`?ref=slug`）進入並完成 LINE 登入
+- `POST /api/auth/callback` 讀取 `ref` 參數，找到對應工作者，執行 `referral_count + 1`
+- 同一 LINE 帳號只計算一次（首次登入時判斷）
 
 ### 解鎖功能規劃
 
@@ -722,9 +773,21 @@ git push -u origin main
 3. Deploy
 4. Settings → Domains → 新增：`yourdomain.com`、`www.yourdomain.com`、`*.yourdomain.com`
 
-### Step 3｜Cloudflare DNS 設定
+### Step 3｜Cloudflare DNS / SSL 設定
 
-進入 [Cloudflare Dashboard](https://dash.cloudflare.com/) → DNS → Records：
+進入 [Cloudflare Dashboard](https://dash.cloudflare.com/) → DNS → Records。
+
+#### 3A｜目前現況（可用，但不一定是最佳實務）
+
+> 這段用於記錄「你現在線上環境跑得動」的設定，方便回頭對照與除錯。
+
+- DNS：`@`、`www`、`*` 皆 CNAME 指向 `cname.vercel-dns.com`
+- Proxy 狀態：可依現況為灰雲（DNS only）或橘雲（Proxied）
+- Cloudflare SSL/TLS：可依現況為 Flexible（若已上線可用）
+
+#### 3B｜建議設定（最佳實務 / 降低風險）
+
+> 若你使用 Vercel 代管與自動簽發憑證，通常建議避免 Cloudflare 對回源做 Proxy，以免造成憑證簽發/重導/回源不穩。
 
 | 類型 | 名稱 | 值 | Proxy 狀態 |
 |------|------|-----|-----------|
@@ -732,7 +795,7 @@ git push -u origin main
 | CNAME | `*` | `cname.vercel-dns.com` | ☁️ DNS only（灰雲） |
 | CNAME | `@` | `cname.vercel-dns.com` | ☁️ DNS only（灰雲） |
 
-> ⚠️ 必須選「DNS only」灰雲，橘雲 Proxy 會干擾 Vercel SSL 憑證簽發。
+- Cloudflare SSL/TLS：建議使用 **Full (strict)**
 
 apex domain 301 redirect：Cloudflare → Rules → Redirect Rules：
 ```
@@ -757,10 +820,52 @@ Callback URL 填入：`https://www.yourdomain.com/auth/callback`
 - [ ] 工作者設定 slug 後，`[slug].yourdomain.com` 立即可訪問
 - [ ] `[slug].yourdomain.com/booking` 顧客預約流程正常
 - [ ] double booking 防護測試（兩個視窗同時搶同一時段）
-- [ ] Cloudflare DNS 所有記錄均為灰雲
+- [ ] Cloudflare DNS/SSL（現況）：`www` 與子網域可正常解析並可訪問
+- [ ] Cloudflare DNS/SSL（建議）：`@`/`www`/`*` 為灰雲（DNS only）且 SSL/TLS 為 Full (strict)
 - [ ] `/privacy` 與 `/terms` 頁面存在且內容正確
 
 ---
+
+
+---
+
+## 定價策略
+
+| 方案 | 定價 | 說明 |
+|------|------|------|
+| 正式定價 | NT$199／月 | 單一定價，不分方案 |
+| 早鳥優惠 | NT$99／月（終身鎖定） | 前 30 名（或可調整），用於測試付費意願並保護正式定價 |
+
+**定價邏輯：**
+- 損益兩平點：199元方案約 10 人，99元方案約 95 人
+- 降價容易漲價難，199起跑保留促銷彈性
+- 定價傳遞產品定位：「專業服務」而非「便宜工具」
+
+**成本結構（每月）：**
+- 固定：Vercel（依方案）＋網域（年費攤提）＋監控/通知等第三方服務（視需求）
+- 變動：Claude API（依對話量）＋（若啟用）簡訊費用（Every8d 等）
+- 未來：記帳/發票系統、人事（用戶量上來後再投入）
+
+---
+
+## 護城河策略
+
+**現有護城河（薄但真實）：**
+- 工作者慣性：顧客已習慣子網域連結，換平台需重新通知所有顧客
+- 推薦網絡：解鎖機制讓早期用戶有動機拉人，後進者從零開始
+
+**建設中護城河：**
+
+| 優先順序 | 護城河 | 具體做法 |
+|---------|--------|---------|
+| 1 | 社群與口碑網絡 | 建 LINE 群／FB 社團，讓用戶互相介紹，製造業界共識 |
+| 2 | 數據優勢 |  提供預約洞察，累積越久越有價值 |
+| 3 | 垂直深化 | 做「美髮美甲師的經營夥伴」，而非泛用預約工具 |
+| 4 | 轉換成本 | 顧客資料、回頭率紀錄在平台上，轉換就是放棄積累 |
+
+**最大競爭威脅：LINE 官方**
+對策：讓平台價值不只是「接受預約」，而是「幫工作者經營顧客關係」。
+LINE 可以做預約，但不會做「沉睡顧客提醒」、「回頭率分析」等深度洞察。
 
 ## MVP 範圍（第一版）
 

@@ -10,6 +10,9 @@
 - [x] **後台通知（免手動重整）**：`/dashboard/appointments` 右上角新增「通知」＋未讀數字；每 15 秒輪詢預約資料，偵測「新增/取消/改期」並顯示通知列表；點擊即已讀消失（已讀狀態暫存於 localStorage）
 - [x] **新增依賴**：加入 `qrcode.react`（以 `QRCodeCanvas` 顯示 QR Code）
 - [x] **驗證（正式網域）**：`kenter.mybookdate.com`「立即預約」連結與後台「分享」功能正常
+- [x] **資安完成**：REVOKE anon/authenticated 權限執行完成，anon key 查詢回傳 permission denied ✅
+- [x] **301 redirect**：`mybookdate.com` → `www.mybookdate.com` 308 redirect 正常 ✅
+- [ ] **數據洞察頁面**（規劃中）：新增 `/dashboard/insights` 頁面，幫工作者經營顧客關係（見下方規格）
 
 ### 今日進度（2026-04-26）
 
@@ -21,7 +24,8 @@
 - [x] **程式修正**：`SUPABASE_SERVICE_ROLE_KEY` 同時接受 `sb_secret_` 與舊版 `eyJ`；**middleware** 對 `*.vercel.app` **不**做 slug rewrite（預設網域首頁不再 404）
 - [x] **驗證**：正式網址首頁、`/auth/login`、後台 `/dashboard/appointments`、預約流程 **以 `?slug=` 在 `project-c8c8z.vercel.app` 上測試通過**
 - [x] **自訂網域**：購買 `mybookdate.com`（Cloudflare Registrar，$10.46/年）
-- [x] **DNS 設定**：Cloudflare DNS 三筆 CNAME 指向 Vercel，`*` 改為橘雲（Proxied），SSL/TLS 模式設為 Flexible
+- [x] **DNS 設定（目前可用）**：Cloudflare DNS 三筆 CNAME 指向 Vercel（已可正常訪問 `www` 與子網域）
+- [ ] **DNS/SSL 建議調整（降低風險）**：所有指向 Vercel 的記錄（`@`/`www`/`*`）建議改為 **DNS only（灰雲）**；Cloudflare SSL/TLS 建議改 **Full (strict)**（避免 Flexible/Proxied 造成回源/憑證/重導不穩）
 - [x] **子網域驗證**：`kenter.mybookdate.com` 正常顯示個人介紹頁（頭像、簡介、營業時間、立即預約按鈕）✅
 - [x] **更新環境變數/Callback**：`NEXT_PUBLIC_APP_URL`、`LINE_CALLBACK_URL` / `NEXT_PUBLIC_LINE_CALLBACK_URL` 改為 `https://www.mybookdate.com`，並同步更新 LINE Console Callback URL
 - [ ] **待後續**：完整預約流程在正式網域驗證（含 LINE 登入、預約對話）
@@ -29,8 +33,7 @@
 ### 文件/設定（必做）
 - [x] 在 Supabase 執行 `supabase/schema.sql`
 - [x] 建立 Storage bucket：`reference-images`（Private，5MB 限制，限 jpg/png）
-- [ ] 撤銷 `anon`/`authenticated` 對資料表與 sequence 權限
-      → SQL 在 **`supabase/schema.sql`** 最下方「撤銷 anon 權限」段落，執行後用 anon key 直接查詢應回傳 permission denied
+- [x] 撤銷 `anon`/`authenticated` 對資料表與 sequence 權限（執行完成，anon role 查詢回傳 permission denied ✅）
 - [x] 確認環境變數齊全（至少 `SUPABASE_SERVICE_ROLE_KEY`、`ANTHROPIC_API_KEY`、LINE 相關）
 - [x] DB：`workers.contact_phone`（顧客端顯示；可 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`）
 
@@ -105,6 +108,71 @@
   - [x] 顯示該電話的所有未來確認預約（日期、時間）
   - [x] 若需取消：顯示工作者聯絡電話，請顧客直接聯繫
 
+
+
+### 解鎖功能導覽列（/dashboard 頂部）
+> 位置：後台頁面頂部中間紅框區域（目前空白處）
+
+**導覽列結構**
+```
+[ 🏠首頁 ] [ icon黑名單 ] [ icon參考圖 ] [ icon簡訊通知 ]
+```
+
+**行為規格**
+- [ ] 🏠 首頁 icon：點擊回到行事曆（預約管理）
+- [ ] 解鎖 icon × 3：依推薦人數依序排列（黑名單→參考圖→簡訊通知）
+  - **未解鎖**：icon 灰色半透明；點擊展開功能說明 + 複製推薦連結按鈕
+  - **已解鎖**：icon 全彩；點擊展開功能入口
+- [ ] icon 樣式細節由工程師決定，方向確認即可
+- [ ] DB：`workers.referral_count` 欄位供前端讀取解鎖狀態
+
+**導覽列下方一行動態提示文字**
+- [ ] 永遠只顯示「距離下一個未解鎖功能」的進度，置中小字灰色
+- [ ] 邏輯：
+  - `referral_count < 5`  → 「目前 X 人　還差 Y 人可解鎖 🚫 黑名單功能」
+  - `5 ≤ referral_count < 10` → 「目前 X 人　還差 Y 人可解鎖 🖼️ 參考圖功能」
+  - `10 ≤ referral_count < 15` → 「目前 X 人　還差 Y 人可解鎖 💬 簡訊通知功能」
+  - `referral_count ≥ 15` → 文字隱藏（全部解鎖）
+
+**分享彈窗（新增推薦區塊）**
+- [ ] 現有區塊（頂部）：顧客預約連結 + 複製按鈕 + QR Code
+- [ ] 新增區塊（QR Code 下方，加分隔線）：
+  - 標題：「推薦設計師加入」
+  - 說明文字：「把連結分享給其他設計師，他們加入後自動計入你的推薦紀錄」
+  - 推薦連結：`https://www.mybookdate.com?ref={slug}`（slug 為工作者自己的 slug）
+  - 「複製推薦連結」按鈕
+- [ ] 後端：`POST /api/auth/callback` 首次登入時讀取 `?ref=` 參數，對應工作者 slug 找到 `worker_id`，執行 `referral_count + 1`
+
+**解鎖門檻**
+| 推薦人數 | 功能 | icon |
+|---------|------|------|
+| 推薦 5 人 | 黑名單機制 | 工程師決定 |
+| 推薦 10 人 | 參考圖上傳 | 工程師決定 |
+| 推薦 15 人 | 簡訊通知 | 工程師決定 |
+
+### 數據洞察（/dashboard/insights）
+> 目標：讓工作者「依賴」平台，加深護城河
+
+**第一級（立刻有感，優先實作）**
+- [ ] 本月預約總數 vs 上月（漲跌幅）
+- [ ] 本月完成／取消／no-show 比例
+- [ ] 最忙時段（週幾、幾點）
+- [ ] 新顧客 vs 回頭客比例（回頭率）
+- [ ] ⚠️ 沉睡顧客提醒：超過 60 天未預約的顧客名單（電話）
+
+**第二級（數據累積後才有意義）**
+- [ ] 顧客平均回訪週期
+- [ ] 高價值顧客排行（預約次數最多前10）
+- [ ] No-show 黑名單候選（連續爽約電話）
+
+**第三級（解鎖功能候選）**
+- [ ] 顧客生日提醒（需工作者輸入顧客生日）
+- [ ] 月收入估算（需工作者設定服務定價）
+- [ ] 服務項目分析
+
+> **技術說明**：全部從現有 `appointments` 資料表計算，不需新增欄位。
+> 新增 API：`GET /api/insights?workerId=xxx&period=30d`
+
 ### Storage（參考圖，解鎖功能）
 - [ ] 產 signed URL（後台）：先驗證 `cookie.worker_id === appointment.worker_id`，再呼叫 service role 產 URL
 - [ ] signed URL 有效期 24 小時
@@ -128,9 +196,10 @@
 - [x] 同時雙視窗搶同一時段：一方 201、一方 409
 - [x] `session_token` 過期後 `POST /api/chat` 被拒絕（401）
 - [x] 非本人 cookie 無法讀／改他人預約（403）
-- [ ] anon key 直接查 `workers` 資料表應回傳 permission denied（**須已在 DB 執行 REVOKE**）
-- [ ] `mybookdate.com` 301 redirect 到 `www.mybookdate.com`（Cloudflare Rules 設定）
-- [ ] Cloudflare DNS：`*` 為橘雲（Proxied），其餘為灰雲；SSL/TLS 為 Flexible ✅
+- [x] anon key 直接查 `workers` 資料表回傳 permission denied ✅
+- [x] `mybookdate.com` 308 redirect 到 `www.mybookdate.com` ✅
+- [x] Cloudflare DNS（現況驗證）：`www` 與子網域可正常解析並可訪問 ✅
+- [ ] Cloudflare DNS/SSL（建議最佳實務）：`@`/`www`/`*` 全部灰雲（DNS only）；SSL/TLS 使用 Full (strict)
 - [x] `/privacy` 與 `/terms` 頁面存在且可正常訪問
 - [x] 預約完成後確認頁顯示完整資訊（工作者電話、日期時間、截圖提示）
 - [x] 電話查詢：輸入正確電話可查到未來預約，不顯示歷史紀錄

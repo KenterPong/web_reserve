@@ -7,6 +7,14 @@ import { readLineOAuthState, clearLineOAuthState } from '@/lib/line-oauth-state'
 
 const lineCallbackInFlight = new Set<string>()
 
+function base64UrlDecodeUtf8(input: string): string {
+  const b64 = input.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4)
+  const bin = atob(padded)
+  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
+}
+
 function CallbackHandler() {
   const [isError, setIsError] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -31,6 +39,16 @@ function CallbackHandler() {
       return
     }
 
+    let ref: string | null = null
+    try {
+      const decoded = base64UrlDecodeUtf8(state)
+      const payload = JSON.parse(decoded) as { ref?: unknown }
+      const maybe = typeof payload?.ref === 'string' ? payload.ref.trim() : ''
+      ref = maybe ? maybe : null
+    } catch {
+      ref = null
+    }
+
     // 避免 React Strict Mode 對同一個 code 呼叫 API 兩次（LINE code 多為單次有效）
     if (lineCallbackInFlight.has(code)) return
     lineCallbackInFlight.add(code)
@@ -38,7 +56,7 @@ function CallbackHandler() {
     fetch('/api/auth/callback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, ref }),
     })
       .then(async (res) => {
         lineCallbackInFlight.delete(code)
