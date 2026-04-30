@@ -22,9 +22,12 @@ function isMainMarketingHost(hostname: string): boolean {
   return hostname === 'www.lvh.me'
 }
 
-// Returns the worker slug if the host is a worker subdomain (not www).
-// If NEXT_PUBLIC_ROOT_DOMAIN is set, only treat *.ROOT_DOMAIN as valid worker subdomains.
-function extractSlug(host: string): string | null {
+/**
+ * 從 Host 抽出「工作者子網域 slug」。
+ * - 已設定 NEXT_PUBLIC_ROOT_DOMAIN：僅 *.ROOT_DOMAIN（且非 www、非 apex）視為子網域 slug。
+ * - 未設定 ROOT：僅「至少三層」hostname（例如 slug.lvh.me）視為子網域，避免 mybookdate.com 被誤判成 slug=mybookdate。
+ */
+function extractWorkerSlugFromHost(host: string): string | null {
   const hostname = host.split(':')[0].toLowerCase()
 
   if (hostname === 'localhost' || hostname === '127.0.0.1') return null
@@ -36,8 +39,10 @@ function extractSlug(host: string): string | null {
   if (ROOT_DOMAIN) {
     if (hostname === ROOT_DOMAIN) return null
     if (!hostname.endsWith(`.${ROOT_DOMAIN}`)) return null
+    return parts[0]
   }
 
+  if (parts.length < 3) return null
   return parts[0]
 }
 
@@ -60,10 +65,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
+  const hostWorkerSlug = extractWorkerSlugFromHost(host)
+
   // 推薦連結：導向登入並帶 ref（內部仍用 /auth/login?ref=，LINE OAuth state 不依賴網址 query）
   // 1) 舊版：www?ref=slug（部分 LINE 內建瀏覽器會丟 query）
-  // 2) 建議：www/{slug}（路徑較不易被吃掉）
-  if (isMainMarketingHost(hostname)) {
+  // 2) 建議：www/{slug} 或 apex {slug}（路徑較不易被吃掉）；僅在主站 host，不在工作者子網域
+  if (!hostWorkerSlug && isMainMarketingHost(hostname)) {
     if (pathname === '/') {
       const ref = req.nextUrl.searchParams.get('ref')?.trim() ?? ''
       if (ref && validateSlug(ref)) {
@@ -86,18 +93,17 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  const slug = extractSlug(host)
-  if (!slug) return NextResponse.next()
+  if (!hostWorkerSlug) return NextResponse.next()
 
   // Subdomain rewrite: keep the external URL intact, map to internal routes
   if (pathname === '/') {
     return NextResponse.rewrite(
-      new URL(`/worker-profile?slug=${encodeURIComponent(slug)}`, req.url),
+      new URL(`/worker-profile?slug=${encodeURIComponent(hostWorkerSlug)}`, req.url),
     )
   }
   if (pathname === '/booking') {
     return NextResponse.rewrite(
-      new URL(`/booking?slug=${encodeURIComponent(slug)}`, req.url),
+      new URL(`/booking?slug=${encodeURIComponent(hostWorkerSlug)}`, req.url),
     )
   }
 
