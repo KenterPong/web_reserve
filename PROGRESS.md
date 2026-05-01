@@ -1,6 +1,6 @@
 # 任務階段進度報告
 
-**更新日：** 2026-04-30  
+**更新日：** 2026-05-06  
 **對照文件：** `to-do-list.md`（實作狀態以此檔勾選為準）、`README.md`（架構與商業說明）
 
 ---
@@ -11,11 +11,11 @@
 |------|------|
 | **Auth** | LINE 手動 OAuth；`worker_id` httpOnly cookie；**跨子網域** `state` 以 **`line-oauth-state`** cookie（`domain` 依 `NEXT_PUBLIC_ROOT_DOMAIN`）＋sessionStorage 備援。**推薦（2026-04-30）**：`/{slug}`／`?ref=` rewrite **`/join`** → `POST /api/auth/referral-intent`（**`referral_slug_intent`**）→ **`/api/auth/line-bootstrap`** 寫 `line_oauth_state` 導 LINE（in-app 走 **`/auth/login/in-app`**）；`/auth/login` 僅轉址 bootstrap（RSC 不可 `cookies().set`）。**Callback**：換票 UPSERT；**首次登入**依 `state.ref` 寫 **`referred_by`／`referral_count`**（`validateSlug`、`maybeSingle`、回傳 **`referralStatus`**）。 |
 | **Middleware** | 子網域 rewrite：`/` → worker-profile、`/booking` → booking；主站推薦路徑 rewrite **`/join`**；apex 兩段 hostname 不誤判 slug；`/auth/callback` host 對齊 `NEXT_PUBLIC_LINE_CALLBACK_URL`；`join` 為保留路徑段。 |
-| **Workers** | 公開 `GET /api/workers?slug=`（`is_active`、含 `contact_phone` / `working_hours_exceptions`）；**IP rate limit** 100/h；後台 PATCH 含聯絡電話驗證。 |
+| **Workers** | 公開 `GET /api/workers?slug=`（`is_active`、含 `contact_phone`、`booking_confirmation_message`、`working_hours_exceptions`）；**IP rate limit** 100/h；後台 PATCH 含聯絡電話與預約完成提醒文字（上限 5000 字）。 |
 | **Chat** | Session 過期／worker 校驗、營業與例外與已預約注入 prompt、**台北時區星期**注入、訊息截斷 20 則、`ACTION` 解析與後端 guardrail、**30/h per session_token**。 |
 | **Appointments** | 公開建立（時段、例外公休、**409** on `23505`）、後台 GET（cookie + 僅本人）、PATCH 狀態、**manage** 取消／改期；**POST rate limit** 5/h IP+worker。 |
 | **Lookup** | 僅未來 `confirmed`、欄位僅日期／時間、**10/h IP**。 |
-| **Booking UI** | 內嵌聯絡表單、預約成功頁（名稱、時間、**聯絡電話**、截圖提示）、「查詢我的預約」、**worker 為 null 時不存取欄位**（修復白屏）。 |
+| **Booking UI** | 內嵌聯絡表單、完成頁標題「**預約申請已送出**」、**自訂／預設提醒文字**（`booking_confirmation_message`）、名稱與時間、**聯絡電話**、截圖提示；「查詢我的預約」；**worker 為 null 時不存取欄位**（修復白屏）。**正式網域完成頁已驗（2026-05-06）**。 |
 | **共用** | `src/lib/datetime-taipei.ts`、`src/lib/rate-limit.ts`（MVP 程序內計數；上線可換 Redis）。 |
 | **文件** | `to-do-list.md` 與 `README` 結構對齊；**已刪除**過時／重複／敏感檔案（見下）。 |
 
@@ -36,7 +36,7 @@
 - Supabase **Storage** `reference-images`（Private）與參考圖 signed URL、上傳限制。  
 - **撤銷 anon** 等 SQL（`supabase/schema.sql` 文末）：若尚未執行請補跑。  
 - Rate limit 上線強化：**Upstash Redis**（README 已列建議）。  
-- Footer 客服、正式網域完整預約＋ LINE 流程回歸測試（DNS／子網域已驗證 ✅）。  
+- Footer 客服、正式網域 **LINE 登入** 與 **AI 預約對話** 全流程回歸測試（預約完成頁與提醒文字已於正式網域驗證 ✅；DNS／子網域已驗證 ✅）。  
 - **LINE `access.line.me` 連線問題**：屬使用者網路／內建瀏覽器限制，產品面以 `/join` 外開與文案引導為主。  
 
 ---

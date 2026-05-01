@@ -2,6 +2,10 @@
 
 > **進度彙報：** 見根目錄 `PROGRESS.md`（與本清單同步維護）。
 
+### 今日進度（2026-05-06）
+
+- [x] **預約完成提醒**：`/dashboard/profile` 編輯、`POST /api/generate-booking-message`、預約完成頁「預約申請已送出」與自訂／預設文案已上線並 **於正式網域（`*.mybookdate.com/booking`）驗證通過**
+
 ### 今日進度（2026-05-01）
 
 - [x] **DB**：正式庫已執行 `ALTER TABLE workers ADD COLUMN booking_confirmation_message TEXT`；repo 同步 `supabase/schema.sql`、`supabase/migrations/20250501120000_workers_booking_confirmation_message.sql`
@@ -116,6 +120,7 @@
 
 ### 顧客端 UI（確認頁 + 查詢入口）
 - [x] 預約確認頁顯示完整資訊：
+  - [x] 標題「**預約申請已送出**」、自訂或預設 **`booking_confirmation_message`**
   - [x] 工作者名稱、預約日期時間、工作者聯絡電話（後台設定 `contact_phone`）
   - [x] 提示文字：「請截圖保存此頁面作為預約憑證」
 - [x] booking 頁加入「查詢我的預約」入口：
@@ -254,7 +259,7 @@
 - [x] Cloudflare DNS（現況驗證）：`www` 與子網域可正常解析並可訪問 ✅
 - [x] Cloudflare DNS（正式環境）：`www` 與子網域已連線 Vercel、行為正常 ✅（與上列 DNS／部署項一致）
 - [x] `/privacy` 與 `/terms` 頁面存在且可正常訪問
-- [x] 預約完成後確認頁顯示完整資訊（工作者電話、日期時間、截圖提示）
+- [x] 預約完成後確認頁顯示完整資訊（標題「預約申請已送出」、提醒文字、工作者電話、日期時間、截圖提示；**正式網域已驗 2026-05-06**）
 - [x] 電話查詢：輸入正確電話可查到未來預約，不顯示歷史紀錄
 - [x] 電話查詢：輸入不存在的電話顯示「查無預約」而非錯誤
 - [x] 子網域正式網域： 正常顯示個人介紹頁 ✅

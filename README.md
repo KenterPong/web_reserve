@@ -8,6 +8,8 @@
 
 **實作進度：** 以 `to-do-list.md` 勾選為準；階段彙報見 **`PROGRESS.md`**。
 
+**近期實作紀要（2026-05-06）**：`workers.booking_confirmation_message`；後台 **`/dashboard/profile`** 編輯與 **`POST /api/generate-booking-message`**（Claude）；預約完成頁改為「**預約申請已送出**」並顯示自訂或預設提醒文字（**正式網域已驗**）。
+
 **近期實作紀要（2026-04-30）**：推薦連結先進 **`/join`** 確認代碼（httpOnly `referral_slug_intent`）再 **`/api/auth/line-bootstrap`** 導 LINE；OAuth `state` 仍帶 `ref`；`POST /api/auth/callback` 僅**首次登入**寫 `referred_by`／遞增 `referral_count`（回傳 `referralStatus`）；舊 Supabase 可執行 `supabase/migrations/20250430120000_workers_referral_columns.sql` 補欄位。
 
 > **安全：** 切勿將 Supabase／LINE／Anthropic 金鑰寫入版本庫。若曾誤提交，請立即於各平台**輪替金鑰**。
@@ -920,13 +922,13 @@ LINE 可以做預約，但不會做「沉睡顧客提醒」、「回頭率分析
 - [x] 人工收款（LINE Pay 轉帳）
 - [x] `/privacy` 隱私權政策頁面
 - [x] `/terms` 服務條款頁面
-- [x] 預約確認頁顯示完整資訊（含截圖提示）
+- [x] 預約確認頁顯示完整資訊（「預約申請已送出」、提醒文字、聯絡電話、截圖提示）
 - [x] 顧客電話查詢預約功能
 
 ### 顧客查詢預約流程
 
-**確認頁（預約完成後）**
-預約成功後顯示完整資訊：工作者名稱、預約日期時間、工作者聯絡電話，並提示「請截圖保存此頁面作為預約憑證」。
+**確認頁（預約申請送出後）**
+顯示標題「預約申請已送出」、工作者名稱與預約日期時間、自訂或預設提醒文字（`booking_confirmation_message`）、工作者聯絡電話，並提示「請截圖保存此頁面作為預約憑證」。
 
 **電話查詢（booking 頁）**
 `[slug].yourdomain.com/booking` 頁面加入「查詢我的預約」入口，顧客輸入電話號碼後顯示：
