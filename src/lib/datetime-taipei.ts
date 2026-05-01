@@ -30,3 +30,18 @@ export function weekdayLabelTaipei(dateStr: string): string {
 export function taipeiTodayYmd(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
 }
+
+/** 台北日曆「今天」與目前分鐘數（0～1439），供預約／改期 UI 與驗證 */
+export function taipeiNowYmdMinutes(): { ymd: string; minutes: number } {
+  const now = new Date()
+  const ymd = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Taipei',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now)
+  const hh = Number(parts.find((p) => p.type === 'hour')?.value ?? '0')
+  const mm = Number(parts.find((p) => p.type === 'minute')?.value ?? '0')
+  return { ymd, minutes: (hh || 0) * 60 + (mm || 0) }
+}

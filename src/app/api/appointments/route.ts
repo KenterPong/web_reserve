@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   const publicWorkerId = searchParams.get('workerId')
   const publicDate = searchParams.get('date')
   const excludeManageToken = searchParams.get('excludeManageToken')
+  const excludeAppointmentId = searchParams.get('excludeAppointmentId')
   if (publicWorkerId && publicDate) {
     const { data, error } = await supabaseAdmin
       .from('appointments')
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: '取得可預約時段失敗', details: error }, { status: 500 })
     }
 
-    const bookedTimes = (data ?? [])
+    let bookedTimes = (data ?? [])
       .filter((a) => a.status === 'confirmed')
       .map((a) => a.appointment_time)
 
@@ -43,7 +44,23 @@ export async function GET(req: NextRequest) {
         .single()
       if (current?.appointment_date === publicDate && current?.appointment_time) {
         const keep = String(current.appointment_time)
-        return NextResponse.json({ bookedTimes: bookedTimes.filter((t) => t !== keep) })
+        bookedTimes = bookedTimes.filter((t) => t !== keep)
+      }
+    }
+
+    if (excludeAppointmentId) {
+      const { data: ex } = await supabaseAdmin
+        .from('appointments')
+        .select('appointment_date,appointment_time,worker_id')
+        .eq('id', excludeAppointmentId)
+        .maybeSingle()
+      if (
+        ex?.worker_id === publicWorkerId &&
+        ex.appointment_date === publicDate &&
+        ex.appointment_time
+      ) {
+        const keep = String(ex.appointment_time)
+        bookedTimes = bookedTimes.filter((t) => t !== keep)
       }
     }
 

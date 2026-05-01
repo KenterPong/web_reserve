@@ -4,6 +4,7 @@
 
 ### 今日進度（2026-05-06）
 
+- [x] **後台改期**：`/dashboard/appointments` 已確認預約卡片新增「改期」；`PATCH /api/appointments/[id]` 支援 `appointment_date`／`appointment_time`（含營業／公休／衝突檢查）；公開 `GET /api/appointments?excludeAppointmentId=` 供改期選時段排除自己
 - [x] **預約完成提醒**：`/dashboard/profile` 編輯、`POST /api/generate-booking-message`、預約完成頁「預約申請已送出」與自訂／預設文案已上線並 **於正式網域（`*.mybookdate.com/booking`）驗證通過**
 
 ### 今日進度（2026-05-01）
@@ -204,7 +205,7 @@
   ```
 
 **其他試用回饋（待評估優先度）**
-- [ ] 改期功能：後台預約卡片加「改期」按鈕，直接修改日期時間，不需先取消再新建（目前 workaround：取消後重新預約）
+- [x] 改期功能：後台預約卡片加「改期」按鈕，直接修改日期時間（`PATCH /api/appointments/[id]`）；顧客端仍可用 `manage_token` 改期
 - [ ] 彈性時段：不同服務項目設定不同時長（複雜功能，列入未來規劃）
 - [ ] 紙本同步：說明問題，建議雙軌並行一個月，非產品問題
 

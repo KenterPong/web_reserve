@@ -1,9 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Appointment } from '@/types'
+import { useState, useEffect, useMemo } from 'react'
+import { Appointment, Worker } from '@/types'
 import { copyTextToClipboard } from '@/lib/utils'
 import { QRCodeCanvas } from 'qrcode.react'
+import { dayKeyForDateTaipei, taipeiNowYmdMinutes } from '@/lib/datetime-taipei'
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+
+function fromMinutes(mins: number): string {
+  const h = String(Math.floor(mins / 60)).padStart(2, '0')
+  const m = String(mins % 60).padStart(2, '0')
+  return `${h}:${m}`
+}
 
 const STATUS_LABEL: Record<string, string> = {
   confirmed: '已確認',
@@ -31,6 +43,17 @@ export default function AppointmentsPage() {
   const [lastSeenAt, setLastSeenAt] = useState<number>(0)
   const [readKeys, setReadKeys] = useState<Record<string, true>>({})
   const [unlockOpen, setUnlockOpen] = useState<null | 'blacklist' | 'referenceImage' | 'sms'>(null)
+  const [workerSlotDuration, setWorkerSlotDuration] = useState(60)
+  const [workerWorkingHours, setWorkerWorkingHours] = useState<Worker['working_hours'] | null>(null)
+  const [workerExceptions, setWorkerExceptions] = useState<Record<string, boolean>>({})
+  const [rescheduleFor, setRescheduleFor] = useState<Appointment | null>(null)
+  const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleTime, setRescheduleTime] = useState('')
+  const [reschedulePartySize, setReschedulePartySize] = useState('1')
+  const [rescheduleServiceItem, setRescheduleServiceItem] = useState('')
+  const [rescheduleBookedTimes, setRescheduleBookedTimes] = useState<string[]>([])
+  const [rescheduleLoading, setRescheduleLoading] = useState(false)
+  const [rescheduleError, setRescheduleError] = useState('')
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date()
     const y = now.getFullYear()
@@ -60,13 +83,62 @@ export default function AppointmentsPage() {
     fetch('/api/workers/me')
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
-        const w = data?.worker
+        const w = data?.worker as Worker | undefined
         setMySlug(w?.slug ?? '')
         setWorkerId(w?.id ?? '')
         setReferralCount(Number(w?.referral_count ?? 0))
+        setWorkerSlotDuration(Number(w?.slot_duration ?? 60))
+        setWorkerWorkingHours(w?.working_hours ?? null)
+        setWorkerExceptions((w?.working_hours_exceptions as Record<string, boolean>) ?? {})
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!rescheduleFor || !workerId || !rescheduleDate) return
+    let cancelled = false
+    fetch(
+      `/api/appointments?workerId=${encodeURIComponent(workerId)}&date=${encodeURIComponent(rescheduleDate)}&excludeAppointmentId=${encodeURIComponent(rescheduleFor.id)}`,
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled) setRescheduleBookedTimes((data?.bookedTimes as string[]) ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) setRescheduleBookedTimes([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [rescheduleFor, rescheduleDate, workerId])
+
+  const availableRescheduleTimes = useMemo(() => {
+    if (!rescheduleFor || !workerWorkingHours || !rescheduleDate) return []
+    if (workerExceptions[rescheduleDate]) return []
+    const dur = workerSlotDuration || 60
+    const key = dayKeyForDateTaipei(rescheduleDate)
+    const s = workerWorkingHours[key]
+    if (!s || s.closed) return []
+    const start = toMinutes(s.start)
+    const end = toMinutes(s.end)
+    const out: string[] = []
+    const { ymd: todayYmd, minutes: nowMin } = taipeiNowYmdMinutes()
+    const minMinutes = rescheduleDate === todayYmd ? nowMin : -Infinity
+    const minAligned =
+      minMinutes === -Infinity
+        ? -Infinity
+        : Math.max(start, start + Math.ceil((minMinutes - start) / dur) * dur)
+    for (let t = start; t + dur <= end; t += dur) out.push(fromMinutes(t))
+    const bookedSet = new Set(rescheduleBookedTimes.map((x) => String(x).slice(0, 5)))
+    return out.filter((t) => toMinutes(t) >= minAligned && !bookedSet.has(t))
+  }, [
+    rescheduleFor,
+    workerWorkingHours,
+    rescheduleDate,
+    workerExceptions,
+    workerSlotDuration,
+    rescheduleBookedTimes,
+  ])
 
   useEffect(() => {
     if (!copyMsg) return
@@ -128,6 +200,51 @@ export default function AppointmentsPage() {
       body: JSON.stringify({ status }),
     })
     fetchAppointments({ silent: true })
+  }
+
+  function openReschedule(apt: Appointment) {
+    setRescheduleError('')
+    setRescheduleFor(apt)
+    setRescheduleDate(apt.appointment_date)
+    setRescheduleTime('')
+    setReschedulePartySize(String(apt.party_size ?? 1))
+    setRescheduleServiceItem(apt.service_item ?? '')
+  }
+
+  function closeReschedule() {
+    setRescheduleFor(null)
+    setRescheduleError('')
+    setRescheduleLoading(false)
+  }
+
+  async function submitReschedule() {
+    if (!rescheduleFor || !rescheduleTime) return
+    setRescheduleLoading(true)
+    setRescheduleError('')
+    try {
+      const res = await fetch(`/api/appointments/${rescheduleFor.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointment_date: rescheduleDate,
+          appointment_time: `${rescheduleTime}:00`,
+          party_size: Number(reschedulePartySize),
+          service_item: rescheduleServiceItem.trim(),
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setRescheduleError((data as { error?: string }).error || '改期失敗')
+        return
+      }
+      const ym = rescheduleDate.slice(0, 7)
+      setCurrentMonth(ym)
+      setSelectedDate(rescheduleDate)
+      closeReschedule()
+      await fetchAppointments({ silent: true })
+    } finally {
+      setRescheduleLoading(false)
+    }
   }
 
   async function openReferenceImage(appointmentId: string) {
@@ -493,6 +610,117 @@ export default function AppointmentsPage() {
         </div>
       ) : null}
 
+      {rescheduleFor ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => !rescheduleLoading && closeReschedule()}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white shadow-lg p-5 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-gray-800">改期</h2>
+              <button
+                type="button"
+                disabled={rescheduleLoading}
+                onClick={() => closeReschedule()}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none disabled:opacity-50"
+                aria-label="關閉"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {rescheduleFor.customer_name}・{rescheduleFor.customer_phone}
+            </p>
+
+            <div className="mt-4 space-y-3 text-left">
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">日期</label>
+                <input
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => {
+                    setRescheduleDate(e.target.value)
+                    setRescheduleTime('')
+                  }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">時段（{workerSlotDuration} 分鐘一格）</label>
+                <div className="flex flex-wrap gap-2">
+                  {availableRescheduleTimes.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setRescheduleTime(t)}
+                      className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                        rescheduleTime === t
+                          ? 'border-green-600 bg-green-50 text-green-800'
+                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+                {availableRescheduleTimes.length === 0 ? (
+                  <p className="text-xs text-gray-400 mt-1">此日無可選時段（公休、已滿或已過今日可預約時間）</p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1">人數</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={reschedulePartySize}
+                    onChange={(e) => setReschedulePartySize(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[11px] text-gray-500 mb-1">服務項目</label>
+                  <input
+                    type="text"
+                    value={rescheduleServiceItem}
+                    onChange={(e) => setRescheduleServiceItem(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              {rescheduleError ? <p className="text-xs text-red-600">{rescheduleError}</p> : null}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={rescheduleLoading}
+                  onClick={() => closeReschedule()}
+                  className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    rescheduleLoading ||
+                    !rescheduleTime ||
+                    !rescheduleServiceItem.trim() ||
+                    !reschedulePartySize.trim()
+                  }
+                  onClick={() => void submitReschedule()}
+                  className="flex-1 bg-green-500 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-green-600 disabled:opacity-50"
+                >
+                  {rescheduleLoading ? '送出中...' : '確認改期'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
         {/* Calendar */}
         <div className="bg-white rounded-2xl shadow-sm p-4">
@@ -584,18 +812,28 @@ export default function AppointmentsPage() {
                     {apt.status === 'confirmed' && (
                       <div className="flex flex-col gap-1 ml-2 shrink-0">
                         <button
+                          type="button"
+                          onClick={() => openReschedule(apt)}
+                          className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-lg hover:bg-green-100"
+                        >
+                          改期
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => updateStatus(apt.id, 'completed')}
                           className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100"
                         >
                           完成
                         </button>
                         <button
+                          type="button"
                           onClick={() => updateStatus(apt.id, 'no_show')}
                           className="text-xs bg-orange-50 text-orange-500 px-3 py-1 rounded-lg hover:bg-orange-100"
                         >
                           未到
                         </button>
                         <button
+                          type="button"
                           onClick={() => { if (confirm('確定取消？')) updateStatus(apt.id, 'cancelled') }}
                           className="text-xs bg-red-50 text-red-500 px-3 py-1 rounded-lg hover:bg-red-100"
                         >

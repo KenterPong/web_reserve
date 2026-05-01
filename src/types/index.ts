@@ -50,6 +50,8 @@ export interface Appointment {
   duration: number
   reference_image_url?: string | null
   note?: string | null
+  /** 顧客改期／取消用；後台 GET 會帶出 */
+  manage_token?: string | null
   status: 'confirmed' | 'cancelled' | 'completed' | 'no_show'
   created_at: string
   updated_at: string

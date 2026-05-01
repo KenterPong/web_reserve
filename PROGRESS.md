@@ -13,7 +13,7 @@
 | **Middleware** | 子網域 rewrite：`/` → worker-profile、`/booking` → booking；主站推薦路徑 rewrite **`/join`**；apex 兩段 hostname 不誤判 slug；`/auth/callback` host 對齊 `NEXT_PUBLIC_LINE_CALLBACK_URL`；`join` 為保留路徑段。 |
 | **Workers** | 公開 `GET /api/workers?slug=`（`is_active`、含 `contact_phone`、`booking_confirmation_message`、`working_hours_exceptions`）；**IP rate limit** 100/h；後台 PATCH 含聯絡電話與預約完成提醒文字（上限 5000 字）。 |
 | **Chat** | Session 過期／worker 校驗、營業與例外與已預約注入 prompt、**台北時區星期**注入、訊息截斷 20 則、`ACTION` 解析與後端 guardrail、**30/h per session_token**。 |
-| **Appointments** | 公開建立（時段、例外公休、**409** on `23505`）、後台 GET（cookie + 僅本人）、PATCH 狀態、**manage** 取消／改期；**POST rate limit** 5/h IP+worker。 |
+| **Appointments** | 公開建立（時段、例外公休、**409** on `23505`）、後台 GET（cookie + 僅本人）、**PATCH `[id]`**：狀態轉換或 **後台改期**（`appointment_date`／`appointment_time`、營業／公休／衝突）；公開 GET 支援 **`excludeAppointmentId`** 排除自己以選時段；**manage** 顧客取消／改期；**POST rate limit** 5/h IP+worker。 |
 | **Lookup** | 僅未來 `confirmed`、欄位僅日期／時間、**10/h IP**。 |
 | **Booking UI** | 內嵌聯絡表單、完成頁標題「**預約申請已送出**」、**自訂／預設提醒文字**（`booking_confirmation_message`）、名稱與時間、**聯絡電話**、截圖提示；「查詢我的預約」；**worker 為 null 時不存取欄位**（修復白屏）。**正式網域完成頁已驗（2026-05-06）**。 |
 | **共用** | `src/lib/datetime-taipei.ts`、`src/lib/rate-limit.ts`（MVP 程序內計數；上線可換 Redis）。 |
