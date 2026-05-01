@@ -12,9 +12,14 @@ interface WorkerPublic {
   business_name?: string | null
   avatar_url?: string | null
   contact_phone?: string | null
+  /** 顧客「預約申請已送出」畫面；未設定時用平台預設 */
+  booking_confirmation_message?: string | null
   working_hours_exceptions?: Record<string, boolean>
   referral_count?: number
 }
+
+const DEFAULT_BOOKING_CONFIRMATION_MESSAGE =
+  '我會盡快確認您的預約，如有時間調整會直接與您聯繫，謝謝！'
 
 interface PendingBooking {
   proposedDate: string
@@ -555,38 +560,52 @@ function BookingChat() {
   if (isCompleted && pendingBooking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-sm w-full text-center space-y-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center space-y-4">
           <div className="text-5xl">{isCancelled ? '✅' : '✅'}</div>
-          <h2 className="text-xl font-bold text-gray-800">{isCancelled ? '已取消預約' : '預約成功！'}</h2>
-          <p className="text-sm text-gray-700">
-            {worker.business_name || worker.display_name}
-          </p>
+          <h2 className="text-xl font-bold text-gray-800">
+            {isCancelled ? '已取消預約' : '預約申請已送出'}
+          </h2>
           {!isCancelled ? (
-            <p className="text-gray-600 text-sm">
-              預約時間：<br />
-              <span className="font-semibold text-gray-800">
-                {formatDateTime(completed?.date ?? pendingBooking.proposedDate, completed?.time ?? pendingBooking.proposedTime)}
-              </span>
-            </p>
+            <>
+              <p className="text-sm text-gray-800 font-medium">
+                {worker.business_name || worker.display_name}
+                <span className="text-gray-400 font-normal"> ／ </span>
+                <span className="text-gray-700">
+                  {formatDateTime(
+                    completed?.date ?? pendingBooking.proposedDate,
+                    completed?.time ?? pendingBooking.proposedTime,
+                  )}
+                </span>
+              </p>
+              <p className="text-sm text-gray-600 leading-relaxed px-1">
+                {(worker.booking_confirmation_message ?? '').trim() ||
+                  DEFAULT_BOOKING_CONFIRMATION_MESSAGE}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span aria-hidden>📞</span>{' '}
+                {worker.contact_phone ? (
+                  <a href={`tel:${worker.contact_phone}`} className="font-semibold text-green-700 underline">
+                    {worker.contact_phone}
+                  </a>
+                ) : (
+                  <span className="text-gray-400">尚未設定聯絡電話</span>
+                )}
+              </p>
+              <p className="text-xs text-gray-500 border-t border-gray-100 pt-3">
+                請截圖保存此頁面作為預約憑證
+              </p>
+            </>
           ) : (
-            <p className="text-gray-600 text-sm">
-              已成功取消此筆預約。<br />
-              如需重新預約，請回到預約頁再選擇時段。
-            </p>
+            <>
+              <p className="text-sm text-gray-700">
+                {worker.business_name || worker.display_name}
+              </p>
+              <p className="text-gray-600 text-sm">
+                已成功取消此筆預約。<br />
+                如需重新預約，請回到預約頁再選擇時段。
+              </p>
+            </>
           )}
-          <p className="text-xs text-gray-500">
-            請截圖保存此頁面作為預約憑證
-          </p>
-          <p className="text-sm text-gray-700">
-            工作者聯絡電話：
-            {worker.contact_phone ? (
-              <a href={`tel:${worker.contact_phone}`} className="ml-1 font-semibold text-green-700 underline">
-                {worker.contact_phone}
-              </a>
-            ) : (
-              <span className="ml-1 text-gray-400">尚未設定（請記下預約時間，或透過訊息與店家確認）</span>
-            )}
-          </p>
 
           {!isCancelled && canUploadReferenceImage ? (
             <div className="text-left rounded-xl border border-gray-100 bg-gray-50 p-3">

@@ -121,6 +121,31 @@ export async function generateBio(answers: Record<string, string>): Promise<stri
   return content.text
 }
 
+/** 顧客送出預約後顯示的提醒文字（後台可再編輯） */
+export async function generateBookingConfirmationMessage(
+  businessName: string,
+  bio: string,
+): Promise<string> {
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 280,
+    messages: [
+      {
+        role: 'user',
+        content: `請用繁體中文寫一段「預約申請已送出後」要顯示給顧客看的簡短提醒（約 2～4 句，總長不超過 150 字）。
+目的：讓顧客知道店家會再確認預約、必要時會聯繫調整，語氣誠懇自然，不要像制式公告。不要 Markdown、不要編號、不要加引號框住全文。
+
+店家／稱呼：${businessName.trim() || '（未設定）'}
+簡介參考（模仿語氣即可，勿逐句抄寫）：${(bio || '').trim().slice(0, 600) || '（無）'}`,
+      },
+    ],
+  })
+
+  const content = response.content[0]
+  if (content.type !== 'text') throw new Error('Unexpected response type')
+  return content.text.trim()
+}
+
 export function parseAction(text: string) {
   const match = text.match(
     /\[ACTION:SHOW_CONTACT_FORM:(\d{4}-\d{2}-\d{2}):(\d{2}:\d{2})\]/,

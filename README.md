@@ -248,7 +248,7 @@ src/
 │       ├── chat/                 # Claude 對話 + session／rate limit
 │       ├── appointments/       # GET／POST；lookup；manage；[id] PATCH
 │       ├── workers/、workers/me/
-│       ├── generate-bio/
+│       ├── generate-bio/、generate-booking-message/  # 預約完成提醒文字（Claude）
 │       └── auth/callback/        # 換票、UPSERT workers、寫入 cookie
 ├── lib/
 │   ├── supabase.ts、supabase-admin.ts、claude.ts、utils.ts

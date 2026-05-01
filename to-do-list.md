@@ -175,17 +175,17 @@
   ALTER TABLE workers
   ADD COLUMN IF NOT EXISTS booking_confirmation_message TEXT;
   ```
-- [ ] 設定頁（`/dashboard/profile` 或設定區塊）新增：
+- [x] 設定頁（`/dashboard/profile` 或設定區塊）新增：
   - 文字輸入框：「預約完成提醒文字」
-  - 「AI 幫我生成」按鈕：呼叫 Claude API，根據工作者的 `business_name` 和 `bio` 自動產出一段符合風格的提醒文字，供工作者修改後儲存
-  - 「儲存」按鈕
-  - 未設定時使用平台預設文字
+  - 「AI 幫我生成」按鈕：`POST /api/generate-booking-message`（Claude，依 `business_name` + `bio`）
+  - 「儲存設定」一併寫入 `PATCH /api/workers`
+  - 未設定時顧客端使用平台預設文字
 
 **顧客端預約完成畫面異動**
-- [ ] 標題從「預約成功」改為「**預約申請已送出**」
-- [ ] 顯示工作者自訂的 `booking_confirmation_message`
+- [x] 標題從「預約成功」改為「**預約申請已送出**」
+- [x] 顯示工作者自訂的 `booking_confirmation_message`
   - 若未設定，顯示預設文字：「我會盡快確認您的預約，如有時間調整會直接與您聯繫，謝謝！」
-- [ ] 完整畫面結構：
+- [x] 完整畫面結構：
   ```
   ✅ 預約申請已送出
 

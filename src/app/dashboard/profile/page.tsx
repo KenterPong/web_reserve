@@ -21,12 +21,14 @@ export default function ProfilePage() {
   const [slug, setSlug] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [contactPhone, setContactPhone] = useState('')
+  const [bookingConfirmationMessage, setBookingConfirmationMessage] = useState('')
   const [bio, setBio] = useState('')
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [workingHours, setWorkingHours] = useState<Worker['working_hours'] | null>(null)
   const [slotDuration, setSlotDuration] = useState(60)
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isGeneratingBookingMsg, setIsGeneratingBookingMsg] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error' | ''>('')
 
@@ -46,6 +48,7 @@ export default function ProfilePage() {
         setSlug(w.slug ?? '')
         setBusinessName(w.business_name ?? '')
         setContactPhone(w.contact_phone ?? '')
+        setBookingConfirmationMessage(w.booking_confirmation_message ?? '')
         setBio(w.bio ?? '')
         setAnswers((w.bio_answers as Record<string, string>) ?? {})
         setWorkingHours(w.working_hours)
@@ -74,6 +77,7 @@ export default function ProfilePage() {
           slug: slug || undefined,
           business_name: businessName || undefined,
           contact_phone: contactPhone.trim() || null,
+          booking_confirmation_message: bookingConfirmationMessage.trim() || null,
           bio,
           bio_answers: answers,
           working_hours: workingHours,
@@ -106,6 +110,21 @@ export default function ProfilePage() {
       if (res.ok) setBio(data.bio)
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  async function handleGenerateBookingMessage() {
+    setIsGeneratingBookingMsg(true)
+    try {
+      const res = await fetch('/api/generate-booking-message', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && typeof data.message === 'string') setBookingConfirmationMessage(data.message)
+      else if (!res.ok && data.error) {
+        setSaveMsg(data.error)
+        setSaveMsgType('error')
+      }
+    } finally {
+      setIsGeneratingBookingMsg(false)
     }
   }
 
@@ -182,7 +201,28 @@ export default function ProfilePage() {
               placeholder="例：0912345678（顯示於預約完成頁）"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400"
             />
-            <p className="text-xs text-gray-400 mt-1">預約成功後顧客會看到此號碼，方便聯繫改期／取消</p>
+            <p className="text-xs text-gray-400 mt-1">顧客送出預約申請後會看到此號碼，方便聯繫改期／取消</p>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">預約完成提醒文字</label>
+            <p className="text-xs text-gray-400 mb-2">
+              顯示於顧客的「預約申請已送出」畫面。未填寫時使用平台預設文案。
+            </p>
+            <textarea
+              value={bookingConfirmationMessage}
+              onChange={e => setBookingConfirmationMessage(e.target.value)}
+              rows={4}
+              placeholder="例：我會在 24 小時內確認您的預約，若有時段調整會主動與您聯繫。"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-400 resize-none"
+            />
+            <button
+              type="button"
+              onClick={handleGenerateBookingMessage}
+              disabled={isGeneratingBookingMsg}
+              className="mt-2 w-full border border-green-400 text-green-600 rounded-xl py-2 text-sm hover:bg-green-50 transition-colors disabled:opacity-50"
+            >
+              {isGeneratingBookingMsg ? 'AI 生成中...' : '✨ AI 幫我生成'}
+            </button>
           </div>
         </div>
 
