@@ -21,6 +21,8 @@ export interface Worker {
   avatar_url?: string | null
   /** 顧客預約確認／查詢時顯示的工作者聯絡電話 */
   contact_phone?: string | null
+  /** 預約申請送出後顧客端顯示的提醒文字；未設定時用平台預設 */
+  booking_confirmation_message?: string | null
   slug?: string | null
   business_name?: string | null
   bio?: string | null

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const { data: worker } = await supabaseAdmin
     .from('workers')
     .select(
-      'id, display_name, business_name, avatar_url, slug, bio, working_hours, working_hours_exceptions, slot_duration, is_active, contact_phone, referral_count',
+      'id, display_name, business_name, avatar_url, slug, bio, working_hours, working_hours_exceptions, slot_duration, is_active, contact_phone, booking_confirmation_message, referral_count',
     )
     .eq('slug', slug)
     .eq('is_active', true)
@@ -54,6 +54,7 @@ export async function PATCH(req: NextRequest) {
     working_hours_exceptions,
     slot_duration,
     contact_phone,
+    booking_confirmation_message,
   } = body
 
   const updates: Record<string, unknown> = {}
@@ -91,6 +92,16 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: '聯絡電話格式不正確（範例：0912345678）' }, { status: 400 })
     }
     updates.contact_phone = raw.length ? raw : null
+  }
+  if (booking_confirmation_message !== undefined) {
+    const raw =
+      booking_confirmation_message === null || booking_confirmation_message === ''
+        ? ''
+        : String(booking_confirmation_message).trim()
+    if (raw.length > 5000) {
+      return NextResponse.json({ error: '預約完成提醒文字請勿超過 5000 字元' }, { status: 400 })
+    }
+    updates.booking_confirmation_message = raw.length ? raw : null
   }
 
   const { data, error } = await supabaseAdmin

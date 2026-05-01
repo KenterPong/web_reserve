@@ -2,6 +2,11 @@
 
 > **進度彙報：** 見根目錄 `PROGRESS.md`（與本清單同步維護）。
 
+### 今日進度（2026-05-01）
+
+- [x] **DB**：正式庫已執行 `ALTER TABLE workers ADD COLUMN booking_confirmation_message TEXT`；repo 同步 `supabase/schema.sql`、`supabase/migrations/20250501120000_workers_booking_confirmation_message.sql`
+- [x] **API**：`GET /api/workers?slug=` 回傳 `booking_confirmation_message`；`PATCH /api/workers` 可更新該欄位（上限 5000 字元）；`Worker` 型別已補欄位
+
 ### 今日進度（2026-04-30）
 
 - [x] **推薦登入流程**：主站 `/{slug}`、`/?ref=` 先 **rewrite** 至 **`/join`**（確認／手填推薦代碼）→ `POST /api/auth/referral-intent` 寫 **httpOnly** `referral_slug_intent` → `GET /api/auth/line-bootstrap` 合併 query／cookie 寫入 OAuth `state` 後導 LINE（in-app 仍走 `/auth/login/in-app` 彈窗）
@@ -159,6 +164,44 @@
 | 推薦 5 人 | 黑名單機制 | 工程師決定 |
 | 推薦 10 人 | 參考圖上傳 | 工程師決定 |
 | 推薦 15 人 | 簡訊通知 | 工程師決定 |
+
+
+### 預約完成提醒文字（來自美髮師試用回饋）
+> 解決「AI 自動回覆讓設計師失去調整彈性」的疑慮
+
+**後台設定頁新增欄位**
+- [x] `workers` 資料表新增欄位：`booking_confirmation_message TEXT`（正式庫已執行；新環境可跑 migration 或下方 SQL）
+  ```sql
+  ALTER TABLE workers
+  ADD COLUMN IF NOT EXISTS booking_confirmation_message TEXT;
+  ```
+- [ ] 設定頁（`/dashboard/profile` 或設定區塊）新增：
+  - 文字輸入框：「預約完成提醒文字」
+  - 「AI 幫我生成」按鈕：呼叫 Claude API，根據工作者的 `business_name` 和 `bio` 自動產出一段符合風格的提醒文字，供工作者修改後儲存
+  - 「儲存」按鈕
+  - 未設定時使用平台預設文字
+
+**顧客端預約完成畫面異動**
+- [ ] 標題從「預約成功」改為「**預約申請已送出**」
+- [ ] 顯示工作者自訂的 `booking_confirmation_message`
+  - 若未設定，顯示預設文字：「我會盡快確認您的預約，如有時間調整會直接與您聯繫，謝謝！」
+- [ ] 完整畫面結構：
+  ```
+  ✅ 預約申請已送出
+
+  [工作者名稱] / [日期] [時間]
+
+  [booking_confirmation_message]
+
+  📞 [contact_phone]
+
+  請截圖保存此頁面作為預約憑證
+  ```
+
+**其他試用回饋（待評估優先度）**
+- [ ] 改期功能：後台預約卡片加「改期」按鈕，直接修改日期時間，不需先取消再新建（目前 workaround：取消後重新預約）
+- [ ] 彈性時段：不同服務項目設定不同時長（複雜功能，列入未來規劃）
+- [ ] 紙本同步：說明問題，建議雙軌並行一個月，非產品問題
 
 ### 數據洞察（/dashboard/insights）
 > 目標：讓工作者「依賴」平台，加深護城河

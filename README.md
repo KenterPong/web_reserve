@@ -48,6 +48,39 @@
 > **成本假設**：每位工作者每月約 20～50 次對話，每次對話約 5～10 輪，以 claude-sonnet 定價估算。若對話量超出預期，優先考慮截斷對話歷史長度或快取 system prompt。
 
 
+
+### 預約完成提醒文字
+
+來自早期用戶試用回饋，解決設計師對「AI 自動接單後無法彈性調整」的疑慮。
+
+**設計概念：**
+預約完成畫面標題改為「預約申請已送出」，並顯示設計師自訂的提醒文字，讓顧客知道設計師還會確認，保留雙方溝通空間。
+
+**設定流程：**
+1. 設計師進後台設定頁，填寫「預約完成提醒文字」
+2. 可點「AI 幫我生成」，Claude 根據 `business_name` 和 `bio` 產出符合風格的建議文字
+3. 修改後儲存到 `workers.booking_confirmation_message`
+
+**顧客端畫面：**
+```
+✅ 預約申請已送出
+
+[工作者名稱] / [日期] [時間]
+
+[booking_confirmation_message]
+（未設定時預設：「我會盡快確認您的預約，如有時間調整會直接與您聯繫，謝謝！」）
+
+📞 [contact_phone]
+
+請截圖保存此頁面作為預約憑證
+```
+
+**DB 異動：**
+```sql
+ALTER TABLE workers
+ADD COLUMN IF NOT EXISTS booking_confirmation_message TEXT;
+```
+
 ### 解鎖功能導覽列
 
 後台頁面（`/dashboard`）頂部中間區域，放置解鎖功能導覽列：

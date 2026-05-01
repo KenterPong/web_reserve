@@ -13,6 +13,7 @@ CREATE TABLE workers (
   display_name             TEXT NOT NULL,
   avatar_url               TEXT,
   contact_phone            TEXT,
+  booking_confirmation_message TEXT,
   slug                     TEXT UNIQUE,
   business_name            TEXT,
   bio                      TEXT,
@@ -65,6 +66,7 @@ CREATE TABLE appointments (
 -- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS party_size INTEGER NOT NULL DEFAULT 1;
 -- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS service_item TEXT NOT NULL DEFAULT '';
 -- ALTER TABLE workers ADD COLUMN IF NOT EXISTS contact_phone TEXT;
+-- ALTER TABLE workers ADD COLUMN IF NOT EXISTS booking_confirmation_message TEXT;
 
 -- =============================================
 -- 對話紀錄資料表
