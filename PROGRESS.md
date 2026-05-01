@@ -36,7 +36,8 @@
 - Supabase **Storage** `reference-images`（Private）與參考圖 signed URL、上傳限制。  
 - **撤銷 anon** 等 SQL（`supabase/schema.sql` 文末）：若尚未執行請補跑。  
 - Rate limit 上線強化：**Upstash Redis**（README 已列建議）。  
-- Footer 客服、正式網域 **LINE 登入** 與 **AI 預約對話** 全流程回歸測試（預約完成頁與提醒文字已於正式網域驗證 ✅；DNS／子網域已驗證 ✅）。  
+- Footer 客服、正式網域 **LINE 登入** 與 **AI 預約對話** 全流程回歸測試（預約完成頁與提醒文字已於正式網域驗證 ✅；**後台改期**已於正式網域驗證 ✅；DNS／子網域已驗證 ✅）。  
+- **`/dashboard/insights`** 與 **`GET /api/insights`**：MVP 已上線；`to-do-list`「數據洞察」一節列第一～三級待擴充指標。  
 - **LINE `access.line.me` 連線問題**：屬使用者網路／內建瀏覽器限制，產品面以 `/join` 外開與文案引導為主。  
 
 ---

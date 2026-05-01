@@ -6,6 +6,7 @@
 
 - [x] **後台改期**：`/dashboard/appointments` 已確認預約卡片新增「改期」；`PATCH /api/appointments/[id]` 支援 `appointment_date`／`appointment_time`（含營業／公休／衝突檢查）；公開 `GET /api/appointments?excludeAppointmentId=` 供改期選時段排除自己
 - [x] **預約完成提醒**：`/dashboard/profile` 編輯、`POST /api/generate-booking-message`、預約完成頁「預約申請已送出」與自訂／預設文案已上線並 **於正式網域（`*.mybookdate.com/booking`）驗證通過**
+- [x] **`/auth/callback`（LINE 回傳）**：以 `window.location` 讀取 `code`／`state`、處理 LINE `error` 參數、同一 authorization `code` 單次換票（Strict Mode 與重複請求防護）
 
 ### 今日進度（2026-05-01）
 
@@ -32,7 +33,6 @@
 - [x] **驗證（正式網域）**：`kenter.mybookdate.com`「立即預約」連結與後台「分享」功能正常
 - [x] **資安完成**：REVOKE anon/authenticated 權限執行完成，anon key 查詢回傳 permission denied ✅
 - [x] **301 redirect**：`mybookdate.com` → `www.mybookdate.com` 308 redirect 正常 ✅
-- [ ] **數據洞察頁面**（規劃中）：新增 `/dashboard/insights` 頁面，幫工作者經營顧客關係（見下方規格）
 
 ### 今日進度（2026-04-26）
 
@@ -48,7 +48,6 @@
 - [x] **DNS／部署（正式環境）**：Vercel 部署與 Cloudflare DNS 已就緒；`www`、apex 與 **`*.mybookdate.com` 子網域** 可正常解析與訪問 ✅（後續若仍要最佳化，可再評估灰雲／Full strict）
 - [x] **子網域驗證**：`kenter.mybookdate.com` 正常顯示個人介紹頁（頭像、簡介、營業時間、立即預約按鈕）✅
 - [x] **更新環境變數/Callback**：`NEXT_PUBLIC_APP_URL`、`LINE_CALLBACK_URL` / `NEXT_PUBLIC_LINE_CALLBACK_URL` 改為 `https://www.mybookdate.com`，並同步更新 LINE Console Callback URL
-- [ ] **待後續**：完整預約流程在正式網域驗證（含 LINE 登入、預約對話）
 
 ### 文件/設定（必做）
 - [x] 在 Supabase 執行 `supabase/schema.sql`
@@ -77,8 +76,8 @@
 - [x] **`*.vercel.app`**：排除 slug rewrite（Vercel 預設網域用 `/worker-profile?slug=`、`/booking?slug=` 測試；`*.lvh.me` 與自訂網域之 `{slug}.網域` 仍走 rewrite）
 
 ### Workers
-- [x] `GET /api/workers?slug=`：回傳公開資料（`is_active=true`；含營業／例外／`contact_phone` 等顯示用欄位）
-- [x] Dashboard profile：可設定/更新 `slug`、`working_hours`、`working_hours_exceptions`、`slot_duration`、`contact_phone`、重新生成 `bio`
+- [x] `GET /api/workers?slug=`：回傳公開資料（`is_active=true`；含營業／例外／`contact_phone`、`booking_confirmation_message` 等顯示用欄位）
+- [x] Dashboard profile：可設定/更新 `slug`、`working_hours`、`working_hours_exceptions`、`slot_duration`、`contact_phone`、`booking_confirmation_message`（含 AI 生成）、重新生成 `bio`
 - [x] slug 設定時驗證格式（英數小寫、不含特殊字元）並確認唯一性
 
 ### Booking / Chat（公開端）
@@ -104,12 +103,12 @@
 - [x] `GET /api/appointments`（後台讀取 + 公開查詢佔用）：
   - [x] 後台：必須驗證 `worker_id` cookie
   - [x] 後台：只能讀自己的預約（`WHERE worker_id = cookie.worker_id`）
-  - [x] 公開：`workerId`+`date` 查當日 booked 時段（供預約頁）
+  - [x] 公開：`workerId`+`date` 查當日 booked 時段（供預約頁）；可選 **`excludeManageToken`**（顧客改期排除自己）、**`excludeAppointmentId`**（後台改期排除自己，須為該 `workerId` 之預約）
   - [x] 月份查詢修正：使用 `[monthStart, nextMonthStart)` 避免 `YYYY-MM-31` 導致查詢失敗
-- [x] `PATCH /api/appointments/[id]`（後台更新狀態）：
+- [x] `PATCH /api/appointments/[id]`（後台：狀態或改期）：
   - [x] 必須驗證 `worker_id` cookie
   - [x] 只能改自己的預約（先查 `appointment.worker_id === cookie.worker_id`）
-  - [x] 允許狀態：`confirmed → completed / cancelled / no_show`
+  - [x] **擇一**：傳 `status` → `confirmed → completed / cancelled / no_show`；或傳 **`appointment_date` + `appointment_time`** → 已確認預約改期（營業／公休／刻度／未來時段／與其他 `confirmed` 衝突檢查）；可選一併更新 `party_size`、`service_item`
 
 - [x] DB 防重複：建立 partial unique index（只限制 `status='confirmed'`），取消後可釋出時段
 - [x] 顧客端取消/改期：新增 `manage_token` + `PATCH /api/appointments/manage`（`manageToken + phone` 驗證）
@@ -210,7 +209,10 @@
 - [ ] 紙本同步：說明問題，建議雙軌並行一個月，非產品問題
 
 ### 數據洞察（/dashboard/insights）
-> 目標：讓工作者「依賴」平台，加深護城河
+> 目標：讓工作者「依賴」平台，加深護城河  
+> **現況**：已有路由 **`/dashboard/insights`** 與 **`GET /api/insights`**（MVP 資料）；下列為待補齊／優化之產品項（與 `README`／`PROGRESS` 對照）。
+
+- [ ] **數據洞察頁面**（產品完整度）：主要指標與互動依下方第一～三級持續實作（見 `src/app/dashboard/insights/page.tsx`）
 
 **第一級（立刻有感，優先實作）**
 - [ ] 本月預約總數 vs 上月（漲跌幅）
@@ -264,4 +266,5 @@
 - [x] 電話查詢：輸入正確電話可查到未來預約，不顯示歷史紀錄
 - [x] 電話查詢：輸入不存在的電話顯示「查無預約」而非錯誤
 - [x] 子網域正式網域： 正常顯示個人介紹頁 ✅
-- [ ] 完整預約流程在  正式網域驗證（含 LINE 登入、預約對話）
+- [x] 後台改期（正式網域）：已確認預約可改日期／時段（`PATCH /api/appointments/[id]`）
+- [ ] **待驗收**：完整預約流程於正式網域（**含 LINE 登入、AI 預約對話**；預約完成頁與提醒文字已驗 ✅）

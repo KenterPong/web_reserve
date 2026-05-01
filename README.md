@@ -8,7 +8,7 @@
 
 **實作進度：** 以 `to-do-list.md` 勾選為準；階段彙報見 **`PROGRESS.md`**。
 
-**近期實作紀要（2026-05-06）**：`workers.booking_confirmation_message`；後台 **`/dashboard/profile`** 編輯與 **`POST /api/generate-booking-message`**（Claude）；預約完成頁改為「**預約申請已送出**」並顯示自訂或預設提醒文字（**正式網域已驗**）。
+**近期實作紀要（2026-05-06）**：`workers.booking_confirmation_message`；後台 **`/dashboard/profile`** 編輯與 **`POST /api/generate-booking-message`**（Claude）；預約完成頁「**預約申請已送出**」與自訂／預設提醒文字（**正式網域已驗**）。**後台改期**：`PATCH /api/appointments/[id]` 可改 **`appointment_date`／`appointment_time`**（與 `status` 擇一）；公開 **`GET /api/appointments?excludeAppointmentId=`** 供改期選時段排除自己。**`/auth/callback`**（頁面）：單次換票、`window.location` 讀 OAuth 參數、處理 LINE `error`。**`/dashboard/insights`** 與 **`GET /api/insights`** 已有 MVP 頁與 API（指標持續擴充見 `to-do-list`）。
 
 **近期實作紀要（2026-04-30）**：推薦連結先進 **`/join`** 確認代碼（httpOnly `referral_slug_intent`）再 **`/api/auth/line-bootstrap`** 導 LINE；OAuth `state` 仍帶 `ref`；`POST /api/auth/callback` 僅**首次登入**寫 `referred_by`／遞增 `referral_count`（回傳 `referralStatus`）；舊 Supabase 可執行 `supabase/migrations/20250430120000_workers_referral_columns.sql` 補欄位。
 
@@ -244,11 +244,12 @@ src/
 │   ├── privacy/、terms/          # 隱私權、服務條款
 │   ├── worker-profile/           # 個人介紹（middleware rewrite）
 │   ├── booking/                  # AI 預約（rewrite；內含時段選擇、查詢預約、聯絡表單）
-│   ├── dashboard/                # 後台（appointments 日曆、profile 設定）
+│   ├── dashboard/                # 後台（appointments 日曆、profile、insights MVP）
 │   ├── api/auth/line-bootstrap、referral-intent、auth/login、auth/callback # LINE OAuth（Set-Cookie 僅 Route Handler）
 │   └── api/
 │       ├── chat/                 # Claude 對話 + session／rate limit
-│       ├── appointments/       # GET／POST；lookup；manage；[id] PATCH
+│       ├── appointments/       # GET（月曆／公開 booked + excludeToken／excludeApptId）、POST、lookup、manage、[id] PATCH（狀態或改期）
+│       ├── insights/           # GET（cookie）預約統計 MVP
 │       ├── workers/、workers/me/
 │       ├── generate-bio/、generate-booking-message/  # 預約完成提醒文字（Claude）
 │       └── auth/callback/        # 換票、UPSERT workers、寫入 cookie
@@ -458,7 +459,7 @@ try {
 ### 修改流程說明
 
 - **取消／改期（顧客）**：預約完成頁提供 `manage_token` + 電話驗證，可呼叫 `PATCH /api/appointments/manage` 取消或改期（詳見 API 實作）。
-- **取消／改期（後台）**：工作者以 cookie 身分更新預約狀態或電話聯繫顧客協調。
+- **取消／改期（後台）**：工作者以 cookie 身分呼叫 **`PATCH /api/appointments/[id]`**：可更新狀態（`completed`／`cancelled`／`no_show`），或傳 **`appointment_date`** + **`appointment_time`** 將 **`confirmed`** 預約改期（營業／公休／時段衝突由後端驗證）；必要時仍可電話與顧客協調。
 - **同電話重複預約**：允許，同一顧客在不同時段可有多筆 `confirmed` 狀態的預約
 - **顧客未到（no_show）**：工作者手動標記，後續黑名單功能解鎖後可連動封鎖
 
