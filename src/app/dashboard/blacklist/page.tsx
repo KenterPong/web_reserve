@@ -2,6 +2,7 @@
 
 import { useState, useEffect, type FormEvent } from 'react'
 import type { BlacklistEntry } from '@/types'
+import { AppConfirmDialog } from '@/components/AppDialog'
 
 export default function BlacklistPage() {
   const [items, setItems] = useState<BlacklistEntry[]>([])
@@ -14,6 +15,7 @@ export default function BlacklistPage() {
   const [msgType, setMsgType] = useState<'success' | 'error' | ''>('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [listError, setListError] = useState('')
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   const unlocked = referralCount >= 5
 
@@ -99,8 +101,7 @@ export default function BlacklistPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('確定要從黑名單移除這支電話？')) return
+  async function performDelete(id: string) {
     setDeletingId(id)
     setMsg('')
     setMsgType('')
@@ -215,7 +216,7 @@ export default function BlacklistPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleDelete(row.id)}
+                        onClick={() => setDeleteTargetId(row.id)}
                         disabled={deletingId === row.id}
                         className="shrink-0 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
                       >
@@ -229,6 +230,21 @@ export default function BlacklistPage() {
           </>
         )}
       </div>
+
+      <AppConfirmDialog
+        open={deleteTargetId !== null}
+        title="移除黑名單"
+        message="確定要從黑名單移除這支電話？"
+        confirmLabel="移除"
+        cancelLabel="先不要"
+        danger
+        onConfirm={() => {
+          const id = deleteTargetId
+          setDeleteTargetId(null)
+          if (id) void performDelete(id)
+        }}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </div>
   )
 }

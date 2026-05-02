@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { AppAlertDialog, AppConfirmDialog } from '@/components/AppDialog'
 import { Appointment, Worker } from '@/types'
 import { copyTextToClipboard } from '@/lib/utils'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -56,6 +57,8 @@ export default function AppointmentsPage() {
   const [rescheduleBookedTimes, setRescheduleBookedTimes] = useState<string[]>([])
   const [rescheduleLoading, setRescheduleLoading] = useState(false)
   const [rescheduleError, setRescheduleError] = useState('')
+  const [refImageAlert, setRefImageAlert] = useState<string | null>(null)
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date()
     const y = now.getFullYear()
@@ -254,12 +257,12 @@ export default function AppointmentsPage() {
       const res = await fetch(`/api/reference-image/signed?appointmentId=${encodeURIComponent(appointmentId)}`)
       const data = await res.json()
       if (!res.ok) {
-        alert(data?.error || '取得參考圖失敗')
+        setRefImageAlert(data?.error || '取得參考圖失敗')
         return
       }
       if (data?.url) window.open(String(data.url), '_blank', 'noopener,noreferrer')
     } catch {
-      alert('取得參考圖失敗')
+      setRefImageAlert('取得參考圖失敗')
     }
   }
 
@@ -842,7 +845,7 @@ export default function AppointmentsPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => { if (confirm('確定取消？')) updateStatus(apt.id, 'cancelled') }}
+                          onClick={() => setCancelConfirmId(apt.id)}
                           className="text-xs bg-red-50 text-red-500 px-3 py-1 rounded-lg hover:bg-red-100"
                         >
                           取消
@@ -875,6 +878,27 @@ export default function AppointmentsPage() {
           </div>
         </div>
       </div>
+
+      <AppAlertDialog
+        open={refImageAlert !== null}
+        title="參考圖"
+        message={refImageAlert ?? ''}
+        onClose={() => setRefImageAlert(null)}
+      />
+      <AppConfirmDialog
+        open={cancelConfirmId !== null}
+        title="取消預約"
+        message="確定要取消這筆預約？"
+        confirmLabel="確定取消"
+        cancelLabel="先不要"
+        danger
+        onConfirm={() => {
+          const id = cancelConfirmId
+          setCancelConfirmId(null)
+          if (id) void updateStatus(id, 'cancelled')
+        }}
+        onCancel={() => setCancelConfirmId(null)}
+      />
     </div>
   )
 }

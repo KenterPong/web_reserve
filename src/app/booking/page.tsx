@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ChatMessage } from '@/types'
 import { dayKeyForDateTaipei } from '@/lib/datetime-taipei'
+import { AppAlertDialog } from '@/components/AppDialog'
 
 interface WorkerPublic {
   id: string
@@ -148,6 +149,7 @@ function BookingChat() {
   const [lookupLoading, setLookupLoading] = useState(false)
   const [lookupError, setLookupError] = useState<string>('')
   const [lookupResults, setLookupResults] = useState<LookupAppointment[] | null>(null)
+  const [noticeDialog, setNoticeDialog] = useState<{ title?: string; message: string } | null>(null)
   const [selectedDate, setSelectedDate] = useState(() => {
     const now = new Date()
     const y = now.getFullYear()
@@ -403,14 +405,17 @@ function BookingChat() {
         setIsCompleted(true)
       } else {
         const data = await res.json().catch(() => ({}))
-        alert(data.error || '預約失敗，請稍後再試')
+        setNoticeDialog({
+          title: '預約無法完成',
+          message: data.error || '預約失敗，請稍後再試',
+        })
         if (res.status !== 403) {
           setSelectedDate(pendingBooking.proposedDate)
           setPendingBooking(null)
         }
       }
     } catch {
-      alert('網路錯誤，請稍後再試')
+      setNoticeDialog({ title: '連線異常', message: '網路錯誤，請稍後再試' })
     } finally {
       setIsSubmitting(false)
     }
@@ -982,6 +987,13 @@ function BookingChat() {
           </button>
         </div>
       )}
+
+      <AppAlertDialog
+        open={noticeDialog !== null}
+        title={noticeDialog?.title}
+        message={noticeDialog?.message ?? ''}
+        onClose={() => setNoticeDialog(null)}
+      />
     </div>
   )
 }
