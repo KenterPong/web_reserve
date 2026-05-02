@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { validatePhone, getClientIp } from '@/lib/utils'
+import { validatePhone, getClientIp, normalizeTaiwanPhone } from '@/lib/utils'
 import { dayKeyForDateTaipei } from '@/lib/datetime-taipei'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -135,6 +135,18 @@ export async function POST(req: NextRequest) {
     // Validate phone format
     if (!validatePhone(customerPhone)) {
       return NextResponse.json({ error: '電話格式不正確（範例：0912345678）' }, { status: 400 })
+    }
+
+    const normalizedCustomerPhone = normalizeTaiwanPhone(customerPhone)
+    const { data: blocked } = await supabaseAdmin
+      .from('blacklist')
+      .select('id')
+      .eq('worker_id', wId)
+      .eq('phone', normalizedCustomerPhone)
+      .maybeSingle()
+
+    if (blocked) {
+      return NextResponse.json({ error: '此電話無法完成預約' }, { status: 403 })
     }
 
     const parsedPartySize = Number(partySize ?? 1)

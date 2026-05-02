@@ -93,6 +93,23 @@ CREATE INDEX idx_chat_sessions_token ON chat_sessions(session_token);
 CREATE INDEX idx_chat_sessions_expires ON chat_sessions(expires_at);
 
 -- =============================================
+-- 黑名單（推薦滿 5 人解鎖；API 寫入／預約阻擋）
+-- =============================================
+CREATE TABLE blacklist (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  worker_id  UUID NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+  phone      TEXT NOT NULL,
+  note       TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_worker_blacklist_phone UNIQUE (worker_id, phone)
+);
+
+CREATE INDEX idx_blacklist_worker ON blacklist(worker_id);
+
+-- 與 workers / appointments 相同策略：RLS 開啟但無 policy；實際存取僅 service role（繞過 RLS）+ REVOKE anon/authenticated。
+ALTER TABLE blacklist ENABLE ROW LEVEL SECURITY;
+
+-- =============================================
 -- updated_at 自動更新 trigger
 -- =============================================
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -128,3 +145,4 @@ CREATE TRIGGER chat_sessions_updated_at
 REVOKE ALL ON TABLE workers       FROM anon, authenticated;
 REVOKE ALL ON TABLE appointments  FROM anon, authenticated;
 REVOKE ALL ON TABLE chat_sessions FROM anon, authenticated;
+REVOKE ALL ON TABLE blacklist FROM anon, authenticated;

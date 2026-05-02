@@ -63,6 +63,14 @@ export interface ChatMessage {
   timestamp?: string
 }
 
+export interface BlacklistEntry {
+  id: string
+  worker_id: string
+  phone: string
+  note: string | null
+  created_at: string
+}
+
 export interface ChatSession {
   id: string
   worker_id: string

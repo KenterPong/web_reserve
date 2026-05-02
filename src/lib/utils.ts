@@ -4,6 +4,13 @@ export function validatePhone(phone: string): boolean {
   return /^(\+886|0)[0-9]{8,9}$/.test(phone)
 }
 
+/** 將台灣門號統一成 0 開頭，供黑名單與預約比對（+8869… → 09…） */
+export function normalizeTaiwanPhone(phone: string): string {
+  let p = phone.trim().replace(/[\s-]/g, '')
+  if (p.startsWith('+886')) return `0${p.slice(4)}`
+  return p
+}
+
 export function getClientIp(req: NextRequest): string {
   const xff = req.headers.get('x-forwarded-for')
   if (xff) return xff.split(',')[0]?.trim() || 'unknown'

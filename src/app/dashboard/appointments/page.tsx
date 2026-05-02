@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { Appointment, Worker } from '@/types'
 import { copyTextToClipboard } from '@/lib/utils'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -32,6 +33,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function AppointmentsPage() {
+  const router = useRouter()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [workerId, setWorkerId] = useState<string>('')
@@ -464,7 +466,13 @@ export default function AppointmentsPage() {
                 <button
                   key={it.kind}
                   type="button"
-                  onClick={() => setUnlockOpen(it.kind)}
+                  onClick={() => {
+                    if (it.kind === 'blacklist' && isUnlocked('blacklist')) {
+                      router.push('/dashboard/blacklist')
+                      return
+                    }
+                    setUnlockOpen(it.kind)
+                  }}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
                     ok ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-50 text-gray-400 opacity-60 hover:opacity-80'
                   }`}
