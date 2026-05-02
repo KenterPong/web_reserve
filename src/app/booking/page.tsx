@@ -459,13 +459,16 @@ function BookingChat() {
       const res = await fetch('/api/reference-image', { method: 'POST', body: fd })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setReferenceUploadMsg(data?.error || `上傳失敗（HTTP ${res.status}）`)
+        setNoticeDialog({
+          title: '參考圖上傳失敗',
+          message: data?.error || `上傳失敗（HTTP ${res.status}）`,
+        })
         return
       }
       setReferenceUploadMsg('上傳成功')
       setReferenceFile(null)
     } catch {
-      setReferenceUploadMsg('網路錯誤，請稍後再試')
+      setNoticeDialog({ title: '連線異常', message: '網路錯誤，請稍後再試' })
     } finally {
       setIsReferenceUploading(false)
     }

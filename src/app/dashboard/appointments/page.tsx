@@ -474,6 +474,10 @@ export default function AppointmentsPage() {
                       router.push('/dashboard/blacklist')
                       return
                     }
+                    if (it.kind === 'referenceImage' && isUnlocked('referenceImage')) {
+                      router.push('/dashboard/reference-images')
+                      return
+                    }
                     setUnlockOpen(it.kind)
                   }}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
@@ -613,6 +617,14 @@ export default function AppointmentsPage() {
                   </button>
                   {copyMsg ? <p className="text-xs text-gray-500">{copyMsg}</p> : null}
                 </>
+              ) : unlockOpen === 'referenceImage' ? (
+                <p className="text-green-700 font-medium">
+                  已解鎖。請點選上方 🖼️ 進入參考圖說明與列表，或到{' '}
+                  <a href="/dashboard/reference-images" className="underline">
+                    參考圖頁面
+                  </a>
+                  。
+                </p>
               ) : (
                 <p className="text-green-700 font-medium">已解鎖（入口開發中）。</p>
               )}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { validatePhone } from '@/lib/utils'
+import { normalizeTaiwanPhone, validatePhone } from '@/lib/utils'
 
 export const runtime = 'nodejs'
 
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (!appt) {
       return NextResponse.json({ error: '找不到預約' }, { status: 404 })
     }
-    if (appt.customer_phone !== customerPhone) {
+    if (normalizeTaiwanPhone(appt.customer_phone) !== normalizeTaiwanPhone(customerPhone)) {
       return NextResponse.json({ error: '電話驗證失敗' }, { status: 403 })
     }
     if (appt.status !== 'confirmed') {
