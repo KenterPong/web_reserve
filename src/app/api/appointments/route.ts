@@ -3,6 +3,11 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { validatePhone, getClientIp, normalizeTaiwanPhone } from '@/lib/utils'
 import { dayKeyForDateTaipei } from '@/lib/datetime-taipei'
 import { checkRateLimit } from '@/lib/rate-limit'
+import {
+  appointmentOverlapsBlockedSlots,
+  blockedSlotStartHhmmSet,
+  timeStrToMinutes,
+} from '@/lib/blocked-slots'
 
 const MIN_LEAD_TIME_MS = 2 * 60 * 60 * 1000
 
@@ -64,7 +69,47 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ bookedTimes })
+    let blockedTimes: string[] = []
+    const { data: wAvail } = await supabaseAdmin
+      .from('workers')
+      .select('slot_duration, working_hours, working_hours_exceptions')
+      .eq('id', publicWorkerId)
+      .maybeSingle()
+
+    const { data: brows, error: berr } = await supabaseAdmin
+      .from('blocked_slots')
+      .select('start_time,end_time')
+      .eq('worker_id', publicWorkerId)
+      .eq('blocked_date', publicDate)
+
+    if (!berr && wAvail && brows?.length) {
+      const ex = (wAvail.working_hours_exceptions ?? {}) as Record<string, boolean>
+      if (!ex[publicDate]) {
+        const dayKey = dayKeyForDateTaipei(publicDate)
+        const wh = wAvail.working_hours as Record<
+          string,
+          { start: string; end: string; closed: boolean }
+        > | null
+        const s = wh?.[dayKey]
+        if (s && !s.closed) {
+          const dur = Number(wAvail.slot_duration ?? 60)
+          const start = timeStrToMinutes(s.start)
+          const end = timeStrToMinutes(s.end)
+          const set = blockedSlotStartHhmmSet(
+            dur,
+            start,
+            end,
+            brows.map((r) => ({
+              start_time: String(r.start_time),
+              end_time: String(r.end_time),
+            })),
+          )
+          blockedTimes = Array.from(set)
+        }
+      }
+    }
+
+    return NextResponse.json({ bookedTimes, blockedTimes })
   }
 
   const workerId = req.cookies.get('worker_id')?.value
@@ -202,6 +247,29 @@ export async function POST(req: NextRequest) {
     }
     if (apptAt < Date.now() + MIN_LEAD_TIME_MS) {
       return NextResponse.json({ error: '最早需在 2 小時後才能預約' }, { status: 400 })
+    }
+
+    const br = await supabaseAdmin
+      .from('blocked_slots')
+      .select('blocked_date,start_time,end_time')
+      .eq('worker_id', wId)
+      .eq('blocked_date', appointmentDate)
+
+    const blockedRows = br.error ? [] : (br.data ?? [])
+
+    if (
+      appointmentOverlapsBlockedSlots(
+        appointmentDate,
+        hhmm,
+        duration,
+        blockedRows.map((r) => ({
+          blocked_date: String(r.blocked_date),
+          start_time: String(r.start_time),
+          end_time: String(r.end_time),
+        })),
+      )
+    ) {
+      return NextResponse.json({ error: '此時段已封鎖，請選擇其他時間' }, { status: 400 })
     }
 
     const manageToken = crypto.randomUUID()

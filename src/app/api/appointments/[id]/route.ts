@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { dayKeyForDateTaipei } from '@/lib/datetime-taipei'
+import { appointmentOverlapsBlockedSlots } from '@/lib/blocked-slots'
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   confirmed: ['completed', 'cancelled', 'no_show'],
@@ -160,6 +161,27 @@ export async function PATCH(
 
   if (conflict?.id) {
     return NextResponse.json({ error: '此時段已有其他確認中預約，請選擇其他時間' }, { status: 409 })
+  }
+
+  const { data: blockedRows } = await supabaseAdmin
+    .from('blocked_slots')
+    .select('blocked_date,start_time,end_time')
+    .eq('worker_id', workerId)
+    .eq('blocked_date', dateStr)
+
+  if (
+    appointmentOverlapsBlockedSlots(
+      dateStr,
+      hhmm,
+      duration,
+      (blockedRows ?? []).map((r) => ({
+        blocked_date: String(r.blocked_date),
+        start_time: String(r.start_time),
+        end_time: String(r.end_time),
+      })),
+    )
+  ) {
+    return NextResponse.json({ error: '此時段已封鎖，請選擇其他時間' }, { status: 400 })
   }
 
   const updates: Record<string, unknown> = {

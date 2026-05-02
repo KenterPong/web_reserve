@@ -71,6 +71,17 @@ export interface BlacklistEntry {
   created_at: string
 }
 
+/** 單日內禁止預約的時段（推薦滿 15 人解鎖） */
+export interface BlockedSlot {
+  id: string
+  worker_id: string
+  blocked_date: string
+  start_time: string
+  end_time: string
+  note: string | null
+  created_at: string
+}
+
 export interface ChatSession {
   id: string
   worker_id: string

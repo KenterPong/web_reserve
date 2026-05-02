@@ -110,6 +110,24 @@ CREATE INDEX idx_blacklist_worker ON blacklist(worker_id);
 ALTER TABLE blacklist ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
+-- 封鎖時段（推薦滿 15 人解鎖；單日部分時段不接預約）
+-- =============================================
+CREATE TABLE blocked_slots (
+  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  worker_id    UUID NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+  blocked_date DATE NOT NULL,
+  start_time   TIME NOT NULL,
+  end_time     TIME NOT NULL,
+  note         TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT blocked_slots_time_order CHECK (start_time < end_time)
+);
+
+CREATE INDEX idx_blocked_slots_worker_date ON blocked_slots(worker_id, blocked_date);
+
+ALTER TABLE blocked_slots ENABLE ROW LEVEL SECURITY;
+
+-- =============================================
 -- updated_at 自動更新 trigger
 -- =============================================
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -146,6 +164,9 @@ REVOKE ALL ON TABLE workers       FROM anon, authenticated;
 REVOKE ALL ON TABLE appointments  FROM anon, authenticated;
 REVOKE ALL ON TABLE chat_sessions FROM anon, authenticated;
 REVOKE ALL ON TABLE blacklist FROM anon, authenticated;
+REVOKE ALL ON TABLE blocked_slots FROM anon, authenticated;
 
 GRANT ALL ON TABLE public.blacklist TO service_role;
 GRANT ALL ON TABLE public.blacklist TO postgres;
+GRANT ALL ON TABLE public.blocked_slots TO service_role;
+GRANT ALL ON TABLE public.blocked_slots TO postgres;

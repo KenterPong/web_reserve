@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Worker } from '@/types'
+import { useState, useEffect, type FormEvent } from 'react'
+import { Worker, BlockedSlot } from '@/types'
+import { MIN_REFERRALS_BLOCKED_SLOTS } from '@/lib/blocked-slots'
 
 const BIO_QUESTIONS = [
   { key: 'name', label: '你的名字／稱呼？', placeholder: '例：Jessica、陳師傅' },
@@ -31,6 +32,19 @@ export default function ProfilePage() {
   const [isGeneratingBookingMsg, setIsGeneratingBookingMsg] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [saveMsgType, setSaveMsgType] = useState<'success' | 'error' | ''>('')
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([])
+  const [blockedMonth, setBlockedMonth] = useState(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    return `${y}-${m}`
+  })
+  const [bsDate, setBsDate] = useState('')
+  const [bsStart, setBsStart] = useState('10:00')
+  const [bsEnd, setBsEnd] = useState('11:00')
+  const [bsNote, setBsNote] = useState('')
+  const [bsSaving, setBsSaving] = useState(false)
+  const [bsMsg, setBsMsg] = useState('')
 
   useEffect(() => {
     fetch('/api/appointments?month=2099-01') // Use appointments endpoint just to check auth
@@ -64,6 +78,31 @@ export default function ProfilePage() {
     }, 2200)
     return () => window.clearTimeout(t)
   }, [saveMsg])
+
+  useEffect(() => {
+    if (!worker || Number(worker.referral_count ?? 0) < MIN_REFERRALS_BLOCKED_SLOTS) {
+      setBlockedSlots([])
+      return
+    }
+    let cancelled = false
+    fetch(`/api/blocked-slots?month=${encodeURIComponent(blockedMonth)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled) setBlockedSlots((d?.blockedSlots as BlockedSlot[]) ?? [])
+      })
+      .catch(() => {
+        if (!cancelled) setBlockedSlots([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [worker, blockedMonth])
+
+  useEffect(() => {
+    if (!worker || bsDate) return
+    const ymd = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
+    setBsDate(ymd)
+  }, [worker, bsDate])
 
   async function handleSave() {
     setIsSaving(true)
@@ -111,6 +150,62 @@ export default function ProfilePage() {
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  function shiftBlockedMonth(delta: number) {
+    const [y, m] = blockedMonth.split('-').map(Number)
+    const d = new Date(y, (m || 1) - 1 + delta, 1)
+    const ny = d.getFullYear()
+    const nm = String(d.getMonth() + 1).padStart(2, '0')
+    setBlockedMonth(`${ny}-${nm}`)
+  }
+
+  async function handleAddBlockedSlot(e: FormEvent) {
+    e.preventDefault()
+    if (!worker || Number(worker.referral_count ?? 0) < MIN_REFERRALS_BLOCKED_SLOTS) return
+    setBsSaving(true)
+    setBsMsg('')
+    try {
+      const res = await fetch('/api/blocked-slots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blocked_date: bsDate,
+          start_time: bsStart,
+          end_time: bsEnd,
+          note: bsNote.trim() || null,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setBsMsg(data.error || '新增失敗')
+        return
+      }
+      setBsMsg('已新增')
+      setBsNote('')
+      const row = data?.blockedSlot as BlockedSlot | undefined
+      const ym = (row?.blocked_date ?? bsDate).slice(0, 7)
+      setBlockedMonth(ym)
+      const g = await fetch(`/api/blocked-slots?month=${encodeURIComponent(ym)}`)
+      const gj = g.ok ? await g.json() : {}
+      setBlockedSlots((gj?.blockedSlots as BlockedSlot[]) ?? [])
+    } finally {
+      setBsSaving(false)
+    }
+  }
+
+  async function handleDeleteBlockedSlot(id: string) {
+    setBsMsg('')
+    const res = await fetch(`/api/blocked-slots/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setBsMsg(data.error || '刪除失敗')
+      return
+    }
+    const g = await fetch(`/api/blocked-slots?month=${encodeURIComponent(blockedMonth)}`)
+    const gj = g.ok ? await g.json() : {}
+    setBlockedSlots((gj?.blockedSlots as BlockedSlot[]) ?? [])
+    setBsMsg('已刪除')
   }
 
   async function handleGenerateBookingMessage() {
@@ -310,6 +405,120 @@ export default function ProfilePage() {
             })}
           </div>
         )}
+
+        {workingHours && worker && Number(worker.referral_count ?? 0) >= MIN_REFERRALS_BLOCKED_SLOTS ? (
+          <div id="blocked-slots" className="bg-white rounded-2xl shadow-sm p-5 space-y-4 scroll-mt-24">
+            <h2 className="text-sm font-semibold text-gray-600">封鎖時段</h2>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              在<strong>已營業</strong>的某一天內，指定連續時段不接受預約（顧客選時段時會與已預約一併顯示為不可選）。區間須完全落在該日營業時間內。
+            </p>
+
+            <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-3">
+              <button
+                type="button"
+                onClick={() => shiftBlockedMonth(-1)}
+                className="text-sm text-green-600 hover:text-green-700"
+              >
+                ‹ 上個月
+              </button>
+              <input
+                type="month"
+                value={blockedMonth}
+                onChange={(e) => setBlockedMonth(e.target.value)}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-gray-700"
+              />
+              <button
+                type="button"
+                onClick={() => shiftBlockedMonth(1)}
+                className="text-sm text-green-600 hover:text-green-700"
+              >
+                下個月 ›
+              </button>
+            </div>
+
+            {blockedSlots.length === 0 ? (
+              <p className="text-xs text-gray-500">這個月尚無封鎖時段。</p>
+            ) : (
+              <ul className="divide-y divide-gray-100 text-sm">
+                {blockedSlots.map((row) => (
+                  <li key={row.id} className="py-2 flex justify-between gap-2 items-start">
+                    <div>
+                      <p className="font-medium text-gray-800">{row.blocked_date}</p>
+                      <p className="text-xs text-gray-600">
+                        {String(row.start_time).slice(0, 5)}～{String(row.end_time).slice(0, 5)}
+                      </p>
+                      {row.note ? <p className="text-xs text-gray-400 mt-0.5">{row.note}</p> : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteBlockedSlot(row.id)}
+                      className="text-xs text-red-600 shrink-0 hover:underline"
+                    >
+                      刪除
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <form onSubmit={handleAddBlockedSlot} className="space-y-2 border-t border-gray-100 pt-3">
+              <p className="text-xs font-medium text-gray-600">新增封鎖</p>
+              {bsMsg ? <p className="text-xs text-gray-500">{bsMsg}</p> : null}
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">日期</label>
+                <input
+                  type="date"
+                  value={bsDate}
+                  onChange={(e) => setBsDate(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-green-400"
+                  required
+                />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 block mb-1">開始</label>
+                  <input
+                    type="time"
+                    value={bsStart}
+                    onChange={(e) => setBsStart(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-green-400"
+                    required
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 block mb-1">結束</label>
+                  <input
+                    type="time"
+                    value={bsEnd}
+                    onChange={(e) => setBsEnd(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-green-400"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">備註（選填）</label>
+                <input
+                  value={bsNote}
+                  onChange={(e) => setBsNote(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-green-400"
+                  placeholder="例：外出看診"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={bsSaving}
+                className="w-full border border-gray-900 text-gray-900 rounded-xl py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+              >
+                {bsSaving ? '儲存中…' : '新增封鎖時段'}
+              </button>
+            </form>
+          </div>
+        ) : workingHours && worker ? (
+          <div className="bg-white rounded-2xl shadow-sm p-5 text-xs text-gray-500 leading-relaxed">
+            推薦滿 {MIN_REFERRALS_BLOCKED_SLOTS} 人後，可在此設定「封鎖時段」（單日部分時段不接預約）。
+          </div>
+        ) : null}
 
         {/* Save */}
         <button

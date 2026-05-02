@@ -3,6 +3,12 @@ import { ChatMessage, Worker, Appointment } from '@/types'
 
 type AppointmentSlot = Pick<Appointment, 'appointment_date' | 'appointment_time' | 'duration'>
 
+export type BlockedSlotPromptRow = {
+  blocked_date: string
+  start_time: string
+  end_time: string
+}
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 const DAY_NAMES: Record<string, string> = {
@@ -13,7 +19,7 @@ const DAY_NAMES: Record<string, string> = {
 export function buildSystemPrompt(
   worker: Worker,
   appointments: AppointmentSlot[],
-  opts?: { mentionedDateWeekdays?: string },
+  opts?: { mentionedDateWeekdays?: string; blockedSlots?: BlockedSlotPromptRow[] },
 ): string {
   const todayStr = new Date().toLocaleDateString('zh-TW', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
@@ -37,6 +43,17 @@ export function buildSystemPrompt(
       ? '目前尚無預約'
       : appointments
           .map(a => `${a.appointment_date} ${a.appointment_time.slice(0, 5)}`)
+          .join('、')
+
+  const blockedSlots = opts?.blockedSlots ?? []
+  const blockedText =
+    blockedSlots.length === 0
+      ? '（無）'
+      : blockedSlots
+          .map(
+            (b) =>
+              `${b.blocked_date} ${String(b.start_time).slice(0, 5)}～${String(b.end_time).slice(0, 5)}`,
+          )
           .join('、')
 
   const workerName = worker.business_name || worker.display_name
@@ -68,8 +85,11 @@ ${exceptionsText}
 【已預約時段（confirmed）】
 ${bookedText}
 
+【封鎖時段（該時段不可預約，與「已預約」不同）】
+${blockedText}
+
 【判斷邏輯】
-- 顧客要求的時段不在營業時間、屬公休日、或已有預約 → 說明原因，主動提供 2～3 個替代時段
+- 顧客要求的時段不在營業時間、屬公休日、已有預約、或落在封鎖時段內 → 說明原因，主動提供 2～3 個替代時段
 - 時段可預約 → 確認時段，請顧客提供姓名與電話，並輸出 action token
 
 【對話風格】

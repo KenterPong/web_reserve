@@ -64,7 +64,9 @@ export default function HomePage({ searchParams }: HomeProps) {
       <footer className="border-t border-gray-100 px-6 py-6 text-center text-sm text-gray-400 space-x-4">
         <Link href="/privacy" className="hover:text-gray-600">隱私權政策</Link>
         <Link href="/terms" className="hover:text-gray-600">服務條款</Link>
-        <a href="mailto:support@yourdomain.com" className="hover:text-gray-600">客服聯絡</a>
+        <a href="mailto:support@mybookdate.com" className="hover:text-gray-600">
+          客服聯絡
+        </a>
       </footer>
     </div>
   )

@@ -2,6 +2,14 @@
 
 > **進度彙報：** 見根目錄 `PROGRESS.md`（與本清單同步維護）。
 
+### 上線前五項（美髮師正式使用前，2026-05-02 盤點）
+
+- [x] **（1）黑名單**：解鎖門檻推薦滿 5 人；後台 `/dashboard/blacklist` CRUD；`POST /api/appointments` 命中黑名單回 403；解鎖導覽順序：黑名單（5）→ 參考圖（10）→ 封鎖時段（15）→ 簡訊（30）
+- [x] **（2）完整預約流程（正式網域）**：已於正式網域驗證 **子網域 `/booking` → AI 對話 → 送出預約 → 完成頁**（含 LINE 工作者登入後台若適用）
+- [x] **（3）Footer 客服**：www 首頁 footer「客服聯絡」mailto：`support@mybookdate.com`
+- [x] **（4）參考圖上傳**：推薦滿 10 人解鎖；顧客 `POST /api/reference-image`、Storage `reference-images`、`GET /api/reference-image/signed`（24h signed URL）、後台 `/dashboard/reference-images` 與行事曆縮圖；cron 清理見 `README`
+- [x] **（5）數據洞察**：**不列為上線阻擋**；`/dashboard/insights` 與 `GET /api/insights` 保留 MVP；下方「第一～三級」指標待真實用戶與營運節奏再深化（細項維持 `[ ]` 迭代）
+
 ### 今日進度（2026-05-06）
 
 - [x] **後台改期**：`/dashboard/appointments` 已確認預約卡片新增「改期」；`PATCH /api/appointments/[id]` 支援 `appointment_date`／`appointment_time`（含營業／公休／衝突檢查）；公開 `GET /api/appointments?excludeAppointmentId=` 供改期選時段排除自己
@@ -99,7 +107,7 @@
   - [x] 例外公休日不可預約
   - [x] 寫入 `appointments`，處理 `23505 unique_violation` → 409（回傳「此時段已被預約」）
   - [x] 時段選擇器：依 `working_hours + slot_duration` 產生可選時段，已預約（confirmed）時段 disabled
-  - [ ] （解鎖功能）可上傳參考圖：由後端用 service role 上傳到 `{worker_id}/{appointment_id}/reference.jpg`；需先確認 `worker.referral_count >= 10`
+  - [x] （解鎖功能）可上傳參考圖：後端 service role 上傳至 Storage `reference-images`，路徑 `{worker_id}/{appointment_id}/reference.{jpg|png}`；`worker.referral_count >= 10`；見 `POST /api/reference-image`
 - [x] `GET /api/appointments`（後台讀取 + 公開查詢佔用）：
   - [x] 後台：必須驗證 `worker_id` cookie
   - [x] 後台：只能讀自己的預約（`WHERE worker_id = cookie.worker_id`）
@@ -135,14 +143,14 @@
 
 **導覽列結構**
 ```
-[ 🏠首頁 ] [ icon黑名單 ] [ icon參考圖 ] [ icon簡訊通知 ]
+[ 🏠首頁 ] [ icon黑名單 ] [ icon參考圖 ] [ icon封鎖時段 ] [ icon簡訊通知 ]
 ```
 
 **行為規格**
 - [x] 🏠 首頁 icon：點擊回到行事曆（預約管理；Dashboard 根路徑已導向 `/dashboard/appointments`）
-- [x] 解鎖 icon × 3：依推薦人數依序排列（黑名單→參考圖→簡訊通知）
+- [x] 解鎖 icon × 4：依推薦人數依序排列（黑名單→參考圖→封鎖時段→簡訊通知）
   - **未解鎖**：icon 灰色半透明；點擊展開功能說明 + 複製推薦連結按鈕
-  - **已解鎖**：icon 全彩；點擊展開功能入口（黑名單／簡訊仍為佔位文案）
+  - **已解鎖**：icon 全彩；點擊展開功能入口（封鎖時段／簡訊仍為佔位或開發中說明，見各功能段落）
 - [x] icon 樣式細節由工程師決定，方向確認即可
 - [x] DB：`workers.referral_count` 欄位供前端讀取解鎖狀態（`GET /api/workers/me`；舊庫可跑 migration 補欄位）
 
@@ -151,8 +159,9 @@
 - [x] 邏輯：
   - `referral_count < 5`  → 「目前 X 人　還差 Y 人可解鎖 🚫 黑名單功能」
   - `5 ≤ referral_count < 10` → 「目前 X 人　還差 Y 人可解鎖 🖼️ 參考圖功能」
-  - `10 ≤ referral_count < 15` → 「目前 X 人　還差 Y 人可解鎖 💬 簡訊通知功能」
-  - `referral_count ≥ 15` → 文字隱藏（全部解鎖）
+  - `10 ≤ referral_count < 15` → 「目前 X 人　還差 Y 人可解鎖 🚫 封鎖時段功能」
+  - `15 ≤ referral_count < 30` → 「目前 X 人　還差 Y 人可解鎖 💬 簡訊通知功能」
+  - `referral_count ≥ 30` → 文字隱藏（全部解鎖）
 
 **分享彈窗（新增推薦區塊）**
 - [x] 現有區塊（頂部）：顧客預約連結 + 複製按鈕 + QR Code
@@ -168,7 +177,8 @@
 |---------|------|------|
 | 推薦 5 人 | 黑名單機制 | 工程師決定 |
 | 推薦 10 人 | 參考圖上傳 | 工程師決定 |
-| 推薦 15 人 | 簡訊通知 | 工程師決定 |
+| 推薦 15 人 | 封鎖時段（單日特定時段禁止預約） | 工程師決定 |
+| 推薦 30 人 | 簡訊通知 | 工程師決定 |
 
 
 ### 預約完成提醒文字（來自美髮師試用回饋）
@@ -234,10 +244,46 @@
 > **技術說明**：全部從現有 `appointments` 資料表計算，不需新增欄位。
 > 新增 API：`GET /api/insights?workerId=xxx&period=30d`
 
+
+### 封鎖時段（推薦 15 人解鎖）
+> 單日內特定時段禁止預約，不影響整體營業時間設定
+
+**DB**
+- [x] `blocked_slots` 資料表已建立（正式庫）
+  ```sql
+  CREATE TABLE blocked_slots (
+    id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    worker_id    UUID REFERENCES workers(id) ON DELETE CASCADE,
+    blocked_date DATE NOT NULL,
+    start_time   TIME NOT NULL,
+    end_time     TIME NOT NULL,
+    note         TEXT,  -- 選填，例如「去看醫生」
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+  );
+  ```
+- [x] REVOKE anon/authenticated 權限（已執行）
+
+**後台 UI**
+- [x] 設定頁（`/dashboard/profile`）新增「封鎖時段」區塊（錨點 `#blocked-slots`）
+  - 顯示現有封鎖時段列表（日期、時段、備註）；依月份切換
+  - 新增：選日期 → 選起始時間 → 選結束時間 → 選填備註 → 儲存
+  - 刪除單筆封鎖時段
+- [x] 僅 `referral_count >= 15` 的工作者可使用（API 與 UI 皆檢查）
+
+**API**
+- [x] `GET /api/blocked-slots?month=YYYY-MM` 取得封鎖時段列表（`worker_id` cookie）
+- [x] `POST /api/blocked-slots` 新增（cookie + 推薦滿 15 人）
+- [x] `DELETE /api/blocked-slots/[id]` 刪除（cookie + 擁有權）
+
+**預約邏輯整合**
+- [x] `POST /api/appointments`、顧客 `PATCH /api/appointments/manage`（改期）、後台 `PATCH /api/appointments/[id]` 皆檢查 `blocked_slots`
+- [x] 公開 `GET /api/appointments?workerId=&date=` 回傳 `blockedTimes`；預約頁時段選擇器與已預約一併 disabled
+- [x] `POST /api/chat` guardrail 與 system prompt 納入封鎖時段
+
 ### Storage（參考圖，解鎖功能）
-- [ ] 產 signed URL（後台）：先驗證 `cookie.worker_id === appointment.worker_id`，再呼叫 service role 產 URL
-- [ ] signed URL 有效期 24 小時
-- [ ] 上傳限制：檔案類型限 `image/jpeg`、`image/png`，大小限 5MB
+- [x] 產 signed URL（後台）：`GET /api/reference-image/signed` 驗證 `cookie.worker_id === appointment.worker_id` 後以 service role 產 URL
+- [x] signed URL 有效期 24 小時（`createSignedUrl(..., 60 * 60 * 24)`）
+- [x] 上傳限制：`POST /api/reference-image` 限 `image/jpeg`、`image/png`，5MB
 
 ### Rate Limit / Abuse 防護
 - [x] `POST /api/chat`：30 次／小時（識別依據：`session_token`）— **MVP：程序內記憶體**
@@ -249,7 +295,7 @@
 ### 營運必備頁面（上線前）
 - [x] `/privacy` 隱私權政策（含資料範圍、保存 180 天、刪除方式）— **頁面已存在，法務文案仍建議審閱**
 - [x] `/terms` 服務條款（含月費、退款、帳號終止）— **頁面已存在，法務文案仍建議審閱**
-- [ ] Footer 客服聯絡方式（email 或 LINE 平台客服帳號）
+- [x] Footer 客服聯絡方式（www 首頁 mailto `support@mybookdate.com`，見「上線前五項（3）」）
 
 ### 測試清單（最低限度，部署後逐項確認）
 - [x] **Vercel Production**：`https://project-c8c8z.vercel.app` 首頁、LINE 登入、後台日曆、以 `?slug=` 預約流程正常
@@ -267,4 +313,4 @@
 - [x] 電話查詢：輸入不存在的電話顯示「查無預約」而非錯誤
 - [x] 子網域正式網域： 正常顯示個人介紹頁 ✅
 - [x] 後台改期（正式網域）：已確認預約可改日期／時段（`PATCH /api/appointments/[id]`）
-- [ ] **待驗收**：完整預約流程於正式網域（**含 LINE 登入、AI 預約對話**；預約完成頁與提醒文字已驗 ✅）
+- [x] **正式網域**：完整預約流程（**含 LINE 登入、AI 預約對話**；預約完成頁與提醒文字已驗 ✅）— 與上方「上線前五項（2）」一致

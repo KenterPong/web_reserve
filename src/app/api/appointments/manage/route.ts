@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { validatePhone } from '@/lib/utils'
+import { appointmentOverlapsBlockedSlots } from '@/lib/blocked-slots'
 
 const MIN_LEAD_TIME_MS = 2 * 60 * 60 * 1000
 
@@ -107,6 +108,27 @@ export async function PATCH(req: NextRequest) {
       }
       if (apptAt < Date.now() + MIN_LEAD_TIME_MS) {
         return NextResponse.json({ error: '最早需在 2 小時後才能改期' }, { status: 400 })
+      }
+
+      const { data: blockedRows } = await supabaseAdmin
+        .from('blocked_slots')
+        .select('blocked_date,start_time,end_time')
+        .eq('worker_id', appt.worker_id)
+        .eq('blocked_date', newDate)
+
+      if (
+        appointmentOverlapsBlockedSlots(
+          newDate,
+          hhmm,
+          duration,
+          (blockedRows ?? []).map((r) => ({
+            blocked_date: String(r.blocked_date),
+            start_time: String(r.start_time),
+            end_time: String(r.end_time),
+          })),
+        )
+      ) {
+        return NextResponse.json({ error: '此時段已封鎖，請選擇其他時間' }, { status: 400 })
       }
 
       const { data, error } = await supabaseAdmin

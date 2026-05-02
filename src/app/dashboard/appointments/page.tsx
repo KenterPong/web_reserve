@@ -7,6 +7,7 @@ import { Appointment, Worker } from '@/types'
 import { copyTextToClipboard } from '@/lib/utils'
 import { QRCodeCanvas } from 'qrcode.react'
 import { dayKeyForDateTaipei, taipeiNowYmdMinutes } from '@/lib/datetime-taipei'
+import { MIN_REFERRALS_BLOCKED_SLOTS } from '@/lib/blocked-slots'
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
@@ -33,6 +34,9 @@ const STATUS_COLOR: Record<string, string> = {
   no_show: 'bg-orange-100 text-orange-600',
 }
 
+/** 解鎖「💬 簡訊通知」所需推薦人數 */
+const MIN_REFERRALS_SMS = 30
+
 export default function AppointmentsPage() {
   const router = useRouter()
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -45,7 +49,9 @@ export default function AppointmentsPage() {
   const [notifyOpen, setNotifyOpen] = useState(false)
   const [lastSeenAt, setLastSeenAt] = useState<number>(0)
   const [readKeys, setReadKeys] = useState<Record<string, true>>({})
-  const [unlockOpen, setUnlockOpen] = useState<null | 'blacklist' | 'referenceImage' | 'sms'>(null)
+  const [unlockOpen, setUnlockOpen] = useState<
+    null | 'blacklist' | 'referenceImage' | 'blockedSlots' | 'sms'
+  >(null)
   const [workerSlotDuration, setWorkerSlotDuration] = useState(60)
   const [workerWorkingHours, setWorkerWorkingHours] = useState<Worker['working_hours'] | null>(null)
   const [workerExceptions, setWorkerExceptions] = useState<Record<string, boolean>>({})
@@ -327,14 +333,18 @@ export default function AppointmentsPage() {
     const x = Number.isFinite(n) ? n : 0
     if (x < 5) return `目前 ${x} 人　還差 ${5 - x} 人可解鎖 🚫 黑名單功能`
     if (x < 10) return `目前 ${x} 人　還差 ${10 - x} 人可解鎖 🖼️ 參考圖功能`
-    if (x < 15) return `目前 ${x} 人　還差 ${15 - x} 人可解鎖 💬 簡訊通知功能`
+    if (x < MIN_REFERRALS_BLOCKED_SLOTS)
+      return `目前 ${x} 人　還差 ${MIN_REFERRALS_BLOCKED_SLOTS - x} 人可解鎖 🗓️ 封鎖時段功能`
+    if (x < MIN_REFERRALS_SMS)
+      return `目前 ${x} 人　還差 ${MIN_REFERRALS_SMS - x} 人可解鎖 💬 簡訊通知功能`
     return null
   }
 
-  function isUnlocked(kind: 'blacklist' | 'referenceImage' | 'sms'): boolean {
+  function isUnlocked(kind: 'blacklist' | 'referenceImage' | 'blockedSlots' | 'sms'): boolean {
     if (kind === 'blacklist') return referralCount >= 5
     if (kind === 'referenceImage') return referralCount >= 10
-    return referralCount >= 15
+    if (kind === 'blockedSlots') return referralCount >= MIN_REFERRALS_BLOCKED_SLOTS
+    return referralCount >= MIN_REFERRALS_SMS
   }
 
   function appointmentEventAtMs(a: Appointment): number {
@@ -462,6 +472,7 @@ export default function AppointmentsPage() {
             {([
               { kind: 'blacklist' as const, label: '🚫', title: '黑名單' },
               { kind: 'referenceImage' as const, label: '🖼️', title: '參考圖' },
+              { kind: 'blockedSlots' as const, label: '🗓️', title: '封鎖時段' },
               { kind: 'sms' as const, label: '💬', title: '簡訊通知' },
             ]).map((it) => {
               const ok = isUnlocked(it.kind)
@@ -476,6 +487,10 @@ export default function AppointmentsPage() {
                     }
                     if (it.kind === 'referenceImage' && isUnlocked('referenceImage')) {
                       router.push('/dashboard/reference-images')
+                      return
+                    }
+                    if (it.kind === 'blockedSlots' && isUnlocked('blockedSlots')) {
+                      router.push('/dashboard/profile#blocked-slots')
                       return
                     }
                     setUnlockOpen(it.kind)
@@ -586,7 +601,13 @@ export default function AppointmentsPage() {
           >
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-gray-800">
-                {unlockOpen === 'blacklist' ? '🚫 黑名單功能' : unlockOpen === 'referenceImage' ? '🖼️ 參考圖功能' : '💬 簡訊通知功能'}
+                {unlockOpen === 'blacklist'
+                  ? '🚫 黑名單功能'
+                  : unlockOpen === 'referenceImage'
+                    ? '🖼️ 參考圖功能'
+                    : unlockOpen === 'blockedSlots'
+                      ? '🗓️ 封鎖時段'
+                      : '💬 簡訊通知功能'}
               </h2>
               <button
                 type="button"
@@ -624,6 +645,10 @@ export default function AppointmentsPage() {
                     參考圖頁面
                   </a>
                   。
+                </p>
+              ) : unlockOpen === 'blockedSlots' ? (
+                <p className="text-green-700 font-medium">
+                  已解鎖。請到「設定」頁面下方「封鎖時段」新增或刪除不可預約的時段。
                 </p>
               ) : (
                 <p className="text-green-700 font-medium">已解鎖（入口開發中）。</p>

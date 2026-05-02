@@ -4,6 +4,10 @@ import { buildSystemPrompt, sendMessage, parseAction } from '@/lib/claude'
 import { ChatMessage } from '@/types'
 import { dayKeyForDateTaipei, taipeiTodayYmd, weekdayLabelTaipei } from '@/lib/datetime-taipei'
 import { checkRateLimit } from '@/lib/rate-limit'
+import {
+  appointmentOverlapsBlockedSlots,
+  blockedSlotStartHhmmSet,
+} from '@/lib/blocked-slots'
 
 const MIN_LEAD_TIME_MS = 2 * 60 * 60 * 1000
 
@@ -35,6 +39,7 @@ function buildSuggestionsForDate(args: {
   booked: { appointment_date: string; appointment_time: string }[]
   date: string
   requestedTime: string
+  blockedOnDate?: Array<{ start_time: string; end_time: string }>
 }): string[] {
   if (isExceptionClosed(args.worker, args.date)) return []
 
@@ -56,12 +61,17 @@ function buildSuggestionsForDate(args: {
       .map((b) => String(b.appointment_time).slice(0, 5)),
   )
 
+  const blockedStartSet =
+    args.blockedOnDate && args.blockedOnDate.length > 0
+      ? blockedSlotStartHhmmSet(dur, start, end, args.blockedOnDate)
+      : new Set<string>()
+
   const slots: string[] = []
   for (let t = start; t + dur <= end; t += dur) {
     const hh = String(Math.floor(t / 60)).padStart(2, '0')
     const mm = String(t % 60).padStart(2, '0')
     const hhmm = `${hh}:${mm}`
-    if (!bookedSet.has(hhmm) && t >= minToday) slots.push(hhmm)
+    if (!bookedSet.has(hhmm) && !blockedStartSet.has(hhmm) && t >= minToday) slots.push(hhmm)
   }
 
   if (slots.length === 0) return []
@@ -152,6 +162,19 @@ export async function POST(req: NextRequest) {
       .gte('appointment_date', today)
       .lte('appointment_date', futureStr)
 
+    const { data: blockedRows } = await supabaseAdmin
+      .from('blocked_slots')
+      .select('blocked_date,start_time,end_time')
+      .eq('worker_id', workerId)
+      .gte('blocked_date', today)
+      .lte('blocked_date', futureStr)
+
+    const blockedList = (blockedRows ?? []).map((b) => ({
+      blocked_date: String(b.blocked_date),
+      start_time: String(b.start_time),
+      end_time: String(b.end_time),
+    }))
+
     const newUserMessage: ChatMessage = {
       role: 'user',
       content: message.trim(),
@@ -169,6 +192,7 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = buildSystemPrompt(worker, appointments ?? [], {
       mentionedDateWeekdays,
+      blockedSlots: blockedList,
     })
     const rawReply = await sendMessage(history, systemPrompt)
 
@@ -182,7 +206,8 @@ export async function POST(req: NextRequest) {
       const s = (worker.working_hours as any)?.[key] as { start: string; end: string; closed: boolean } | undefined
       const start = s && !s.closed && !closedByException ? toMinutes(s.start) : null
       const end = s && !s.closed && !closedByException ? toMinutes(s.end) : null
-      const req = toMinutes(proposedTime)
+      const propHhmm = String(proposedTime).slice(0, 5)
+      const req = toMinutes(propHhmm)
 
       const withinHours =
         !closedByException &&
@@ -191,16 +216,21 @@ export async function POST(req: NextRequest) {
         req >= start &&
         req + dur <= end &&
         (req - start) % dur === 0
-
       const isBooked = (appointments ?? []).some(
-        (a) => a.appointment_date === proposedDate && String(a.appointment_time).slice(0, 5) === proposedTime,
+        (a) =>
+          a.appointment_date === proposedDate && String(a.appointment_time).slice(0, 5) === propHhmm,
       )
 
-      const proposedAt = new Date(`${proposedDate}T${proposedTime}:00+08:00`).getTime()
+      const isBlocked = appointmentOverlapsBlockedSlots(proposedDate, propHhmm, dur, blockedList)
+
+      const proposedAt = new Date(`${proposedDate}T${propHhmm}:00+08:00`).getTime()
       const leadOk =
         Number.isFinite(proposedAt) && proposedAt >= Date.now() + MIN_LEAD_TIME_MS
 
-      if (!withinHours || isBooked || !leadOk) {
+      if (!withinHours || isBooked || isBlocked || !leadOk) {
+        const blockedOnDate = blockedList
+          .filter((b) => b.blocked_date === proposedDate)
+          .map((b) => ({ start_time: b.start_time, end_time: b.end_time }))
         const suggestions = buildSuggestionsForDate({
           worker,
           booked: (appointments ?? []).map((a) => ({
@@ -209,6 +239,7 @@ export async function POST(req: NextRequest) {
           })),
           date: proposedDate,
           requestedTime: proposedTime,
+          blockedOnDate,
         })
 
         const suggestText =

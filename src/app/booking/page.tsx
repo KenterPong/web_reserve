@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ChatMessage } from '@/types'
@@ -161,6 +161,7 @@ function BookingChat() {
     return `${y}-${m}-${d}`
   })
   const [bookedTimes, setBookedTimes] = useState<string[]>([])
+  const [blockedTimes, setBlockedTimes] = useState<string[]>([])
   const [sessionToken] = useState(() =>
     typeof window !== 'undefined' ? getOrCreateSessionToken() : '',
   )
@@ -217,8 +218,14 @@ function BookingChat() {
     const exclude = completed?.manageToken ? `&excludeManageToken=${encodeURIComponent(completed.manageToken)}` : ''
     fetch(`/api/appointments?workerId=${encodeURIComponent(worker.id)}&date=${encodeURIComponent(selectedDate)}${exclude}`)
       .then(res => (res.ok ? res.json() : null))
-      .then(data => setBookedTimes((data?.bookedTimes as string[]) ?? []))
-      .catch(() => setBookedTimes([]))
+      .then((data) => {
+        setBookedTimes((data?.bookedTimes as string[]) ?? [])
+        setBlockedTimes((data?.blockedTimes as string[]) ?? [])
+      })
+      .catch(() => {
+        setBookedTimes([])
+        setBlockedTimes([])
+      })
   }, [worker?.id, selectedDate, completed?.manageToken])
 
   // Prefill contact fields if user already typed them in chat
@@ -257,7 +264,10 @@ function BookingChat() {
     return out.filter((t) => toMinutes(t) >= minAligned)
   })()
 
-  const bookedSet = new Set(bookedTimes.map(t => t.slice(0, 5)))
+  const bookedSet = useMemo(() => {
+    const merged = [...bookedTimes, ...blockedTimes].map((t) => String(t).slice(0, 5))
+    return new Set(merged)
+  }, [bookedTimes, blockedTimes])
 
   function validateProposedSlot(date: string, time: string): { ok: boolean; reason?: string } {
     if (!worker) return { ok: false, reason: '載入中' }
@@ -280,7 +290,8 @@ function BookingChat() {
     const requested = toMinutes(String(time).slice(0, 5))
     if (requested < start || requested + dur > end) return { ok: false, reason: '此時間不在營業時段內' }
     if ((requested - start) % dur !== 0) return { ok: false, reason: `請選擇每 ${dur} 分鐘為間隔的時段` }
-    if (bookedSet.has(String(time).slice(0, 5))) return { ok: false, reason: '此時段已被預約' }
+    if (bookedSet.has(String(time).slice(0, 5)))
+      return { ok: false, reason: '此時段無法預約（可能已被預約或由店家封鎖）' }
 
     const { ymd: todayYmd, minutes: nowMin } = taipeiNowYmdMinutes()
     if (date === todayYmd && requested < nowMin + 120) {
