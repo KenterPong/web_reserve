@@ -142,6 +142,8 @@ function BookingChat() {
   const [reschedulePartySize, setReschedulePartySize] = useState('1')
   const [rescheduleServiceItem, setRescheduleServiceItem] = useState('')
   const [referenceFile, setReferenceFile] = useState<File | null>(null)
+  /** 本機預覽用 blob URL；上傳成功後仍保留直到換檔或離開頁 */
+  const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null)
   const [referenceUploadMsg, setReferenceUploadMsg] = useState('')
   const [isReferenceUploading, setIsReferenceUploading] = useState(false)
   const [showLookup, setShowLookup] = useState(false)
@@ -163,6 +165,12 @@ function BookingChat() {
   )
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    return () => {
+      if (referenceImagePreview) URL.revokeObjectURL(referenceImagePreview)
+    }
+  }, [referenceImagePreview])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -467,6 +475,7 @@ function BookingChat() {
       }
       setReferenceUploadMsg('上傳成功')
       setReferenceFile(null)
+      // 保留 referenceImagePreview 讓預覽仍顯示
     } catch {
       setNoticeDialog({ title: '連線異常', message: '網路錯誤，請稍後再試' })
     } finally {
@@ -625,9 +634,23 @@ function BookingChat() {
                 <input
                   type="file"
                   accept="image/jpeg,image/png"
-                  onChange={(e) => setReferenceFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null
+                    setReferenceFile(f)
+                    setReferenceImagePreview(f ? URL.createObjectURL(f) : null)
+                  }}
                   className="block w-full text-xs text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-white file:text-gray-700"
                 />
+                {referenceImagePreview ? (
+                  <div className="rounded-lg border border-gray-200 bg-white p-2 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={referenceImagePreview}
+                      alt="參考圖預覽"
+                      className="max-h-56 w-full object-contain mx-auto"
+                    />
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   onClick={handleUploadReference}
