@@ -166,6 +166,7 @@ function BookingChat() {
   )
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const referenceFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     return () => {
@@ -476,7 +477,7 @@ function BookingChat() {
       }
       setReferenceUploadMsg('上傳成功')
       setReferenceFile(null)
-      // 保留 referenceImagePreview 讓預覽仍顯示
+      setReferenceImagePreview(null)
     } catch {
       setNoticeDialog({ title: '連線異常', message: '網路錯誤，請稍後再試' })
     } finally {
@@ -633,6 +634,7 @@ function BookingChat() {
               </p>
               <div className="mt-2 space-y-2">
                 <input
+                  ref={referenceFileInputRef}
                   type="file"
                   accept="image/jpeg,image/png"
                   onChange={(e) => {
@@ -642,34 +644,59 @@ function BookingChat() {
                     setReferenceUploadMsg('')
                     setReferenceUploadConfirmOpen(false)
                   }}
-                  className="block w-full text-xs text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-white file:text-gray-700"
+                  className="sr-only"
+                  aria-label="選擇參考圖片檔案"
                 />
-                {referenceImagePreview ? (
-                  <div className="rounded-lg border border-gray-200 bg-white p-2 overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={referenceImagePreview}
-                      alt="參考圖預覽"
-                      className="max-h-56 w-full object-contain mx-auto"
-                    />
-                  </div>
-                ) : null}
+                {!referenceFile ? (
+                  <button
+                    type="button"
+                    onClick={() => referenceFileInputRef.current?.click()}
+                    className="w-full rounded-xl border-2 border-dashed border-gray-300 bg-white py-10 px-4 flex flex-col items-center justify-center gap-2 text-center hover:border-green-400 hover:bg-green-50/50 transition-colors"
+                    aria-label="開啟檔案選擇以挑選參考圖"
+                  >
+                    <span className="text-3xl" aria-hidden>
+                      📷
+                    </span>
+                    <span className="text-base font-semibold text-gray-800">上傳參考圖</span>
+                    <span className="text-xs text-gray-500">點此選擇圖片（jpg / png，5MB 以內）</span>
+                  </button>
+                ) : (
+                  <>
+                    <div className="rounded-lg border border-gray-200 bg-white p-2 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={referenceImagePreview ?? ''}
+                        alt="參考圖預覽"
+                        className="max-h-56 w-full object-contain mx-auto"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => referenceFileInputRef.current?.click()}
+                      className="text-xs text-green-700 font-medium hover:underline w-full text-center"
+                    >
+                      重新選擇圖片
+                    </button>
+                  </>
+                )}
                 {referenceFile && !isReferenceUploading ? (
                   <p className="text-xs text-amber-700 font-medium">
                     該圖片只是預覽圖，還未上傳完成！
                   </p>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!completed?.manageToken || !referenceFile || isReferenceUploading) return
-                    setReferenceUploadConfirmOpen(true)
-                  }}
-                  disabled={!completed?.manageToken || !referenceFile || isReferenceUploading}
-                  className="w-full px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-gray-800 transition-colors"
-                >
-                  {isReferenceUploading ? '上傳中...' : '上傳參考圖'}
-                </button>
+                {referenceFile ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!completed?.manageToken || !referenceFile || isReferenceUploading) return
+                      setReferenceUploadConfirmOpen(true)
+                    }}
+                    disabled={!completed?.manageToken || !referenceFile || isReferenceUploading}
+                    className="w-full px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-gray-800 transition-colors"
+                  >
+                    {isReferenceUploading ? '上傳中...' : '確認送出上傳'}
+                  </button>
+                ) : null}
                 {referenceUploadMsg ? <p className="text-xs text-gray-500">{referenceUploadMsg}</p> : null}
               </div>
             </div>
@@ -1030,8 +1057,8 @@ function BookingChat() {
       <AppConfirmDialog
         open={referenceUploadConfirmOpen}
         title="上傳參考圖"
-        message="是否確定上傳？"
-        confirmLabel="確定上傳"
+        message="是否確定送出上傳？"
+        confirmLabel="確定送出"
         cancelLabel="先不要"
         onConfirm={() => {
           setReferenceUploadConfirmOpen(false)
