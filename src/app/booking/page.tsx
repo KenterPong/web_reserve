@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ChatMessage } from '@/types'
 import { dayKeyForDateTaipei } from '@/lib/datetime-taipei'
-import { AppAlertDialog } from '@/components/AppDialog'
+import { AppAlertDialog, AppConfirmDialog } from '@/components/AppDialog'
 
 interface WorkerPublic {
   id: string
@@ -146,6 +146,7 @@ function BookingChat() {
   const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null)
   const [referenceUploadMsg, setReferenceUploadMsg] = useState('')
   const [isReferenceUploading, setIsReferenceUploading] = useState(false)
+  const [referenceUploadConfirmOpen, setReferenceUploadConfirmOpen] = useState(false)
   const [showLookup, setShowLookup] = useState(false)
   const [lookupPhone, setLookupPhone] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
@@ -638,6 +639,8 @@ function BookingChat() {
                     const f = e.target.files?.[0] ?? null
                     setReferenceFile(f)
                     setReferenceImagePreview(f ? URL.createObjectURL(f) : null)
+                    setReferenceUploadMsg('')
+                    setReferenceUploadConfirmOpen(false)
                   }}
                   className="block w-full text-xs text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-white file:text-gray-700"
                 />
@@ -651,9 +654,17 @@ function BookingChat() {
                     />
                   </div>
                 ) : null}
+                {referenceFile && !isReferenceUploading ? (
+                  <p className="text-xs text-amber-700 font-medium">
+                    該圖片只是預覽圖，還未上傳完成！
+                  </p>
+                ) : null}
                 <button
                   type="button"
-                  onClick={handleUploadReference}
+                  onClick={() => {
+                    if (!completed?.manageToken || !referenceFile || isReferenceUploading) return
+                    setReferenceUploadConfirmOpen(true)
+                  }}
                   disabled={!completed?.manageToken || !referenceFile || isReferenceUploading}
                   className="w-full px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-gray-800 transition-colors"
                 >
@@ -1016,6 +1027,18 @@ function BookingChat() {
         </div>
       )}
 
+      <AppConfirmDialog
+        open={referenceUploadConfirmOpen}
+        title="上傳參考圖"
+        message="是否確定上傳？"
+        confirmLabel="確定上傳"
+        cancelLabel="先不要"
+        onConfirm={() => {
+          setReferenceUploadConfirmOpen(false)
+          void handleUploadReference()
+        }}
+        onCancel={() => setReferenceUploadConfirmOpen(false)}
+      />
       <AppAlertDialog
         open={noticeDialog !== null}
         title={noticeDialog?.title}
