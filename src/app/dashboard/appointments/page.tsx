@@ -61,6 +61,7 @@ export default function AppointmentsPage() {
   const [reschedulePartySize, setReschedulePartySize] = useState('1')
   const [rescheduleServiceItem, setRescheduleServiceItem] = useState('')
   const [rescheduleBookedTimes, setRescheduleBookedTimes] = useState<string[]>([])
+  const [rescheduleBlockedTimes, setRescheduleBlockedTimes] = useState<string[]>([])
   const [rescheduleLoading, setRescheduleLoading] = useState(false)
   const [rescheduleError, setRescheduleError] = useState('')
   const [refImageAlert, setRefImageAlert] = useState<string | null>(null)
@@ -113,10 +114,16 @@ export default function AppointmentsPage() {
     )
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!cancelled) setRescheduleBookedTimes((data?.bookedTimes as string[]) ?? [])
+        if (!cancelled) {
+          setRescheduleBookedTimes((data?.bookedTimes as string[]) ?? [])
+          setRescheduleBlockedTimes((data?.blockedTimes as string[]) ?? [])
+        }
       })
       .catch(() => {
-        if (!cancelled) setRescheduleBookedTimes([])
+        if (!cancelled) {
+          setRescheduleBookedTimes([])
+          setRescheduleBlockedTimes([])
+        }
       })
     return () => {
       cancelled = true
@@ -140,8 +147,10 @@ export default function AppointmentsPage() {
         ? -Infinity
         : Math.max(start, start + Math.ceil((minMinutes - start) / dur) * dur)
     for (let t = start; t + dur <= end; t += dur) out.push(fromMinutes(t))
-    const bookedSet = new Set(rescheduleBookedTimes.map((x) => String(x).slice(0, 5)))
-    return out.filter((t) => toMinutes(t) >= minAligned && !bookedSet.has(t))
+    const disabledSet = new Set(
+      [...rescheduleBookedTimes, ...rescheduleBlockedTimes].map((x) => String(x).slice(0, 5)),
+    )
+    return out.filter((t) => toMinutes(t) >= minAligned && !disabledSet.has(t))
   }, [
     rescheduleFor,
     workerWorkingHours,
@@ -149,6 +158,7 @@ export default function AppointmentsPage() {
     workerExceptions,
     workerSlotDuration,
     rescheduleBookedTimes,
+    rescheduleBlockedTimes,
   ])
 
   useEffect(() => {
@@ -226,6 +236,8 @@ export default function AppointmentsPage() {
     setRescheduleFor(null)
     setRescheduleError('')
     setRescheduleLoading(false)
+    setRescheduleBookedTimes([])
+    setRescheduleBlockedTimes([])
   }
 
   async function submitReschedule() {
@@ -715,7 +727,9 @@ export default function AppointmentsPage() {
                   ))}
                 </div>
                 {availableRescheduleTimes.length === 0 ? (
-                  <p className="text-xs text-gray-400 mt-1">此日無可選時段（公休、已滿或已過今日可預約時間）</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    此日無可選時段（公休、已預約、已封鎖或已過今日可選時間）
+                  </p>
                 ) : null}
               </div>
               <div className="grid grid-cols-3 gap-2">
