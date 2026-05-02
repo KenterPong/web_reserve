@@ -14,3 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_blacklist_worker ON blacklist(worker_id);
 ALTER TABLE blacklist ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE blacklist FROM anon, authenticated;
+
+-- PostgREST 以 service_role 存取；僅 REVOKE anon/authenticated 時，新表常缺少對 service_role 的 GRANT，會出現 permission denied
+GRANT ALL ON TABLE public.blacklist TO service_role;
+GRANT ALL ON TABLE public.blacklist TO postgres;

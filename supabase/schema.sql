@@ -146,3 +146,6 @@ REVOKE ALL ON TABLE workers       FROM anon, authenticated;
 REVOKE ALL ON TABLE appointments  FROM anon, authenticated;
 REVOKE ALL ON TABLE chat_sessions FROM anon, authenticated;
 REVOKE ALL ON TABLE blacklist FROM anon, authenticated;
+
+GRANT ALL ON TABLE public.blacklist TO service_role;
+GRANT ALL ON TABLE public.blacklist TO postgres;
