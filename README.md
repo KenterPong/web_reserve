@@ -585,6 +585,13 @@ const { data } = await supabaseAdmin.storage
 - 檔案大小：5MB 以內
 - 功能開關：`worker.referral_count >= 10` 才允許上傳
 
+**保留時間（自動刪除）**  
+以台北時間計算「預約開始時間 + `duration`（分鐘）」為**時段結束**，再過 **2 小時** 後由排程刪除 Storage 物件並清空 `appointments.reference_image_url`。
+
+- **API**：`GET` 或 `POST` `/api/cron/cleanup-reference-images`（需標頭 `Authorization: Bearer <CRON_SECRET>`）
+- **環境變數**：`CRON_SECRET`（請自行產生強隨機字串）
+- **Vercel**：專案根目錄 `vercel.json` 已設定每小時觸發上述路徑；部署後於 Dashboard 設定同名 `CRON_SECRET`，與本機／其他託管請以外部排程（cron + curl）定期呼叫並帶上 Bearer。
+
 ---
 
 ## LINE Login × Supabase 整合步驟

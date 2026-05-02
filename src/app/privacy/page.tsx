@@ -25,6 +25,9 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-base font-semibold text-gray-800 mb-2">三、資料保存期限</h2>
           <p>預約完成後，顧客個人資料（姓名、電話）保存 <strong>180 天</strong>，期滿後自動刪除或匿名化處理。</p>
+          <p className="mt-2">
+            顧客選填上傳之參考圖片：於該筆預約之<strong>服務時段結束後約 2 小時</strong>自伺服器自動刪除，不另長期保存。
+          </p>
         </section>
 
         <section>

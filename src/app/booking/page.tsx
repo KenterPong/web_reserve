@@ -618,7 +618,9 @@ function BookingChat() {
           {!isCancelled && canUploadReferenceImage ? (
             <div className="text-left rounded-xl border border-gray-100 bg-gray-50 p-3">
               <p className="text-sm font-semibold text-gray-800">上傳參考圖（選填）</p>
-              <p className="text-xs text-gray-500 mt-1">可上傳一張 jpg/png（5MB 以內），讓工作者提前評估。</p>
+              <p className="text-xs text-gray-500 mt-1">
+                可上傳一張 jpg/png（5MB 以內），讓工作者提前評估。圖檔於<strong>預約時段結束後約 2 小時</strong>自動從伺服器刪除。
+              </p>
               <div className="mt-2 space-y-2">
                 <input
                   type="file"

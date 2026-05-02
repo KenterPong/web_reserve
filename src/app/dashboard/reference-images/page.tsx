@@ -95,7 +95,9 @@ export default function ReferenceImagesPage() {
               <p>
                 顧客送出預約後，在<strong>同一頁的預約完成畫面</strong>可選擇上傳一張參考圖（選填）。上傳成功後，你可在下方列表或行事曆的該筆預約旁點「查看參考圖」。
               </p>
-              <p className="text-xs text-gray-500">格式：JPEG／PNG，單檔不超過 5MB。若重新上傳會覆蓋舊檔。</p>
+              <p className="text-xs text-gray-500">
+                格式：JPEG／PNG，單檔不超過 5MB。若重新上傳會覆蓋舊檔。系統會在<strong>預約時段結束後約 2 小時</strong>自動刪除參考圖（台北時間，含預約之服務時長）。
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-5 space-y-3">

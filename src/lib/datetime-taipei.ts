@@ -45,3 +45,20 @@ export function taipeiNowYmdMinutes(): { ymd: string; minutes: number } {
   const mm = Number(parts.find((p) => p.type === 'minute')?.value ?? '0')
   return { ymd, minutes: (hh || 0) * 60 + (mm || 0) }
 }
+
+/**
+ * 預約時段「結束」的 epoch 毫秒（Asia/Taipei）：開始時間 + duration 分鐘。
+ * `appointmentTime` 可為 `HH:MM` 或 `HH:MM:SS`。
+ */
+export function appointmentSlotEndMsTaipei(
+  appointmentDate: string,
+  appointmentTime: string,
+  durationMinutes: number,
+): number {
+  const hhmm = String(appointmentTime).slice(0, 5)
+  const startMs = new Date(`${appointmentDate}T${hhmm}:00+08:00`).getTime()
+  if (!Number.isFinite(startMs)) return NaN
+  const dur =
+    Number.isFinite(durationMinutes) && durationMinutes > 0 ? Math.floor(durationMinutes) : 60
+  return startMs + dur * 60 * 1000
+}
