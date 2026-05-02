@@ -812,6 +812,24 @@ function BookingChat() {
             </div>
           ) : null}
         </div>
+        <AppConfirmDialog
+          open={referenceUploadConfirmOpen}
+          title="上傳參考圖"
+          message="是否確定送出上傳？"
+          confirmLabel="確定送出"
+          cancelLabel="先不要"
+          onConfirm={() => {
+            setReferenceUploadConfirmOpen(false)
+            void handleUploadReference()
+          }}
+          onCancel={() => setReferenceUploadConfirmOpen(false)}
+        />
+        <AppAlertDialog
+          open={noticeDialog !== null}
+          title={noticeDialog?.title}
+          message={noticeDialog?.message ?? ''}
+          onClose={() => setNoticeDialog(null)}
+        />
       </div>
     )
   }
@@ -1054,18 +1072,6 @@ function BookingChat() {
         </div>
       )}
 
-      <AppConfirmDialog
-        open={referenceUploadConfirmOpen}
-        title="上傳參考圖"
-        message="是否確定送出上傳？"
-        confirmLabel="確定送出"
-        cancelLabel="先不要"
-        onConfirm={() => {
-          setReferenceUploadConfirmOpen(false)
-          void handleUploadReference()
-        }}
-        onCancel={() => setReferenceUploadConfirmOpen(false)}
-      />
       <AppAlertDialog
         open={noticeDialog !== null}
         title={noticeDialog?.title}
