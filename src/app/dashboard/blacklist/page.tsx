@@ -13,8 +13,15 @@ export default function BlacklistPage() {
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState<'success' | 'error' | ''>('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [listError, setListError] = useState('')
 
   const unlocked = referralCount >= 5
+
+  function formatApiError(data: { error?: string; hint?: string }) {
+    return [data.error, data.hint]
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      .join('\n')
+  }
 
   useEffect(() => {
     fetch('/api/workers/me')
@@ -32,18 +39,26 @@ export default function BlacklistPage() {
       return
     }
     setLoading(true)
+    setListError('')
     fetch('/api/blacklist')
-      .then((r) => {
+      .then(async (r) => {
         if (r.status === 401) {
           window.location.href = '/api/auth/line-bootstrap'
           return null
         }
-        return r.json()
+        const data = await r.json().catch(() => ({}))
+        if (!r.ok) {
+          setListError(formatApiError(data) || '無法載入黑名單')
+          return null
+        }
+        return data
       })
       .then((data) => {
         if (data?.items) setItems(data.items)
       })
-      .catch(() => {})
+      .catch(() => {
+        setListError('無法載入黑名單')
+      })
       .finally(() => setLoading(false))
   }, [unlocked])
 
@@ -76,7 +91,7 @@ export default function BlacklistPage() {
         setNote('')
         if (data?.item) setItems((prev) => [data.item, ...prev])
       } else {
-        setMsg(data.error || '新增失敗')
+        setMsg(formatApiError(data) || '新增失敗')
         setMsgType('error')
       }
     } finally {
@@ -97,7 +112,7 @@ export default function BlacklistPage() {
         setMsg('已移除')
         setMsgType('success')
       } else {
-        setMsg(data.error || '刪除失敗')
+        setMsg(formatApiError(data) || '刪除失敗')
         setMsgType('error')
       }
     } finally {
@@ -113,7 +128,7 @@ export default function BlacklistPage() {
             className={`px-4 py-2 rounded-xl shadow-md text-sm border ${
               msgType === 'success'
                 ? 'bg-white text-green-700 border-green-200'
-                : 'bg-white text-red-600 border-red-200'
+                : 'bg-white text-red-600 border-red-200 max-w-md whitespace-pre-line text-left'
             }`}
           >
             {msg}
@@ -138,6 +153,11 @@ export default function BlacklistPage() {
           </div>
         ) : (
           <>
+            {listError ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 whitespace-pre-line">
+                {listError}
+              </div>
+            ) : null}
             <div className="bg-white rounded-2xl shadow-sm p-5 space-y-3">
               <h2 className="text-sm font-semibold text-gray-600">新增封鎖電話</h2>
               <p className="text-xs text-gray-500">
@@ -178,6 +198,8 @@ export default function BlacklistPage() {
               <h2 className="text-sm font-semibold text-gray-600 mb-3">封鎖列表</h2>
               {loading ? (
                 <p className="text-sm text-gray-500">載入中…</p>
+              ) : listError ? (
+                <p className="text-sm text-gray-500">無法顯示列表（見上方錯誤說明）</p>
               ) : items.length === 0 ? (
                 <p className="text-sm text-gray-500">尚無項目</p>
               ) : (

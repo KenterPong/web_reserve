@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireBlacklistFeature } from '@/lib/blacklist-access'
+import { mapBlacklistDbError } from '@/lib/blacklist-db-error'
 
 export async function DELETE(
   req: NextRequest,
@@ -27,7 +28,7 @@ export async function DELETE(
     .maybeSingle()
 
   if (findErr) {
-    return NextResponse.json({ error: '刪除失敗', details: findErr }, { status: 500 })
+    return mapBlacklistDbError(findErr, 'delete')
   }
   if (!row) {
     return NextResponse.json({ error: '找不到項目' }, { status: 404 })
@@ -36,7 +37,7 @@ export async function DELETE(
   const { error } = await supabaseAdmin.from('blacklist').delete().eq('id', id).eq('worker_id', workerId)
 
   if (error) {
-    return NextResponse.json({ error: '刪除失敗', details: error }, { status: 500 })
+    return mapBlacklistDbError(error, 'delete')
   }
 
   return NextResponse.json({ ok: true })

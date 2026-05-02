@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { requireBlacklistFeature } from '@/lib/blacklist-access'
+import { mapBlacklistDbError } from '@/lib/blacklist-db-error'
 import { normalizeTaiwanPhone, validatePhone } from '@/lib/utils'
 
 export async function GET(req: NextRequest) {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
 
   if (error) {
-    return NextResponse.json({ error: '讀取黑名單失敗', details: error }, { status: 500 })
+    return mapBlacklistDbError(error, 'read')
   }
 
   return NextResponse.json({ items: data ?? [] })
@@ -63,7 +64,13 @@ export async function POST(req: NextRequest) {
     if (error.code === '23505') {
       return NextResponse.json({ error: '此電話已在黑名單中' }, { status: 409 })
     }
-    return NextResponse.json({ error: '新增失敗', details: error }, { status: 500 })
+    if (error.code === '23503') {
+      return NextResponse.json(
+        { error: '無法寫入', hint: '登入狀態異常，請重新登入後再試。' },
+        { status: 400 },
+      )
+    }
+    return mapBlacklistDbError(error, 'insert')
   }
 
   return NextResponse.json({ item: data }, { status: 201 })
