@@ -409,7 +409,7 @@ export default function AppointmentsPage() {
             </button>
 
             {notifyOpen ? (
-              <div className="absolute right-0 mt-2 w-[320px] rounded-2xl border border-gray-100 bg-white shadow-lg overflow-hidden z-40">
+              <div className="fixed left-1/2 top-24 z-40 w-[min(100vw-2rem,320px)] -translate-x-1/2 rounded-2xl border border-gray-100 bg-white shadow-lg overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[320px] sm:translate-x-0">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                   <p className="text-sm font-semibold text-gray-800">通知</p>
                   <button
