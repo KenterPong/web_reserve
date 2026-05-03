@@ -31,6 +31,47 @@ export function taipeiTodayYmd(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' })
 }
 
+/** 月曆標題用：YYYY-MM → 「2026年5月」（SSR 與瀏覽器一致，固定台北時區） */
+export function formatMonthYearZhTaipei(ym: string): string {
+  return new Intl.DateTimeFormat('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: 'long',
+  }).format(new Date(`${ym}-01T12:00:00+08:00`))
+}
+
+/** 選定日的標題列：YYYY-MM-DD → 「2026年5月3日 星期日」 */
+export function formatYmdLongZhTaipei(dateStr: string): string {
+  return new Intl.DateTimeFormat('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  }).format(new Date(`${dateStr}T12:00:00+08:00`))
+}
+
+/** 該日在台北為週日 0 … 週六 6，供月曆開頭空白格 */
+export function taipeiWeekdaySun0(dateStr: string): number {
+  const key = dayKeyForDateTaipei(dateStr)
+  const map: Record<(typeof DAY_KEYS)[number], number> = {
+    sun: 0,
+    mon: 1,
+    tue: 2,
+    wed: 3,
+    thu: 4,
+    fri: 5,
+    sat: 6,
+  }
+  return map[key]
+}
+
+/** 時間戳在台北時區的讀法（通知「更新」等，避免 SSR 與客戶端字串不一致） */
+export function formatInstantZhTaipei(ms: number): string {
+  if (!Number.isFinite(ms)) return ''
+  return new Date(ms).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })
+}
+
 /** 台北日曆「今天」與目前分鐘數（0～1439），供預約／改期 UI 與驗證 */
 export function taipeiNowYmdMinutes(): { ymd: string; minutes: number } {
   const now = new Date()

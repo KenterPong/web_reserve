@@ -6,7 +6,15 @@ import { AppAlertDialog, AppConfirmDialog } from '@/components/AppDialog'
 import { Appointment, Worker } from '@/types'
 import { copyTextToClipboard } from '@/lib/utils'
 import { QRCodeCanvas } from 'qrcode.react'
-import { dayKeyForDateTaipei, taipeiNowYmdMinutes } from '@/lib/datetime-taipei'
+import {
+  dayKeyForDateTaipei,
+  formatInstantZhTaipei,
+  formatMonthYearZhTaipei,
+  formatYmdLongZhTaipei,
+  taipeiNowYmdMinutes,
+  taipeiTodayYmd,
+  taipeiWeekdaySun0,
+} from '@/lib/datetime-taipei'
 import { MIN_REFERRALS_BLOCKED_SLOTS } from '@/lib/blocked-slots'
 
 function toMinutes(hhmm: string): number {
@@ -66,19 +74,8 @@ export default function AppointmentsPage() {
   const [rescheduleError, setRescheduleError] = useState('')
   const [refImageAlert, setRefImageAlert] = useState<string | null>(null)
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null)
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const now = new Date()
-    const y = now.getFullYear()
-    const m = String(now.getMonth() + 1).padStart(2, '0')
-    const d = String(now.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
-  })
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const now = new Date()
-    const y = now.getFullYear()
-    const m = String(now.getMonth() + 1).padStart(2, '0')
-    return `${y}-${m}`
-  })
+  const [selectedDate, setSelectedDate] = useState(() => taipeiTodayYmd())
+  const [currentMonth, setCurrentMonth] = useState(() => taipeiTodayYmd().slice(0, 7))
 
   useEffect(() => { fetchAppointments({ silent: false }) }, [currentMonth])
 
@@ -315,7 +312,7 @@ export default function AppointmentsPage() {
     .filter(a => a.appointment_date === selectedDate)
     .sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = taipeiTodayYmd()
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN
   const shareUrl =
     mySlug && rootDomain
@@ -448,7 +445,7 @@ export default function AppointmentsPage() {
                             {a.appointment_date}・{(a.party_size ?? 1)} 人・{a.service_item || '（未填寫服務項目）'}
                           </p>
                           <p className="text-[11px] text-gray-400 mt-1">
-                            更新：{new Date(appointmentEventAtMs(a)).toLocaleString('zh-TW')}
+                            更新：{formatInstantZhTaipei(appointmentEventAtMs(a))}
                           </p>
                         </button>
                       ))}
@@ -789,7 +786,7 @@ export default function AppointmentsPage() {
           <div className="flex items-center justify-between mb-4">
             <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-lg">‹</button>
             <span className="font-semibold text-gray-800 text-sm">
-              {new Date(currentMonth + '-01').toLocaleDateString('zh-TW', { year: 'numeric', month: 'long' })}
+              {formatMonthYearZhTaipei(currentMonth)}
             </span>
             <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-lg">›</button>
           </div>
@@ -801,7 +798,7 @@ export default function AppointmentsPage() {
           </div>
 
           <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: new Date(currentMonth + '-01').getDay() }).map((_, i) => (
+            {Array.from({ length: taipeiWeekdaySun0(`${currentMonth}-01`) }).map((_, i) => (
               <div key={`e-${i}`} />
             ))}
             {getDaysInMonth().map(date => {
@@ -831,9 +828,7 @@ export default function AppointmentsPage() {
         {/* Day appointments */}
         <div>
           <h2 className="text-xs font-semibold text-gray-500 mb-2 px-1">
-            {new Date(selectedDate + 'T00:00:00').toLocaleDateString('zh-TW', {
-              year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
-            })}
+            {formatYmdLongZhTaipei(selectedDate)}
           </h2>
 
           {isLoading ? (

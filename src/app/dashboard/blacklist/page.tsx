@@ -3,6 +3,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import type { BlacklistEntry } from '@/types'
 import { AppConfirmDialog } from '@/components/AppDialog'
+import { formatInstantZhTaipei } from '@/lib/datetime-taipei'
 
 export default function BlacklistPage() {
   const [items, setItems] = useState<BlacklistEntry[]>([])
@@ -211,7 +212,7 @@ export default function BlacklistPage() {
                         <p className="text-sm font-medium text-gray-800">{row.phone}</p>
                         {row.note ? <p className="text-xs text-gray-500 mt-1">{row.note}</p> : null}
                         <p className="text-[11px] text-gray-400 mt-1">
-                          {new Date(row.created_at).toLocaleString('zh-TW')}
+                          {formatInstantZhTaipei(Date.parse(row.created_at))}
                         </p>
                       </div>
                       <button
