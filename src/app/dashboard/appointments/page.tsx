@@ -501,7 +501,7 @@ export default function AppointmentsPage() {
                       return
                     }
                     if (it.kind === 'blockedSlots' && isUnlocked('blockedSlots')) {
-                      router.push('/dashboard/profile#blocked-slots')
+                      router.push('/dashboard/blocked-slots')
                       return
                     }
                     setUnlockOpen(it.kind)
@@ -659,7 +659,11 @@ export default function AppointmentsPage() {
                 </p>
               ) : unlockOpen === 'blockedSlots' ? (
                 <p className="text-green-700 font-medium">
-                  已解鎖。請到「設定」頁面下方「封鎖時段」新增或刪除不可預約的時段。
+                  已解鎖。請點選上方 🗓️ 進入封鎖時段頁面，或到{' '}
+                  <a href="/dashboard/blocked-slots" className="underline">
+                    封鎖時段
+                  </a>
+                  。
                 </p>
               ) : (
                 <p className="text-green-700 font-medium">已解鎖（入口開發中）。</p>
