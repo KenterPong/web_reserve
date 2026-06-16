@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { ChatMessage } from '@/types'
 import { dayKeyForDateTaipei } from '@/lib/datetime-taipei'
-import { AppAlertDialog, AppConfirmDialog } from '@/components/AppDialog'
+import { AppAlertDialog } from '@/components/AppDialog'
 
 interface WorkerPublic {
   id: string
@@ -16,11 +16,16 @@ interface WorkerPublic {
   /** 顧客「預約申請已送出」畫面；未設定時用平台預設 */
   booking_confirmation_message?: string | null
   working_hours_exceptions?: Record<string, boolean>
-  referral_count?: number
 }
 
 const DEFAULT_BOOKING_CONFIRMATION_MESSAGE =
   '我會盡快確認您的預約，如有時間調整會直接與您聯繫，謝謝！'
+
+function displayBookingConfirmationMessage(message: string | null | undefined): string {
+  const raw = (message ?? '').trim() || DEFAULT_BOOKING_CONFIRMATION_MESSAGE
+  const cleaned = raw.replace(/K\s*會親自確認時段[，,]?\s*/g, '').trim()
+  return cleaned || DEFAULT_BOOKING_CONFIRMATION_MESSAGE
+}
 
 interface PendingBooking {
   proposedDate: string
@@ -141,12 +146,6 @@ function BookingChat() {
   const [rescheduleTime, setRescheduleTime] = useState('')
   const [reschedulePartySize, setReschedulePartySize] = useState('1')
   const [rescheduleServiceItem, setRescheduleServiceItem] = useState('')
-  const [referenceFile, setReferenceFile] = useState<File | null>(null)
-  /** 本機預覽用 blob URL；上傳成功後仍保留直到換檔或離開頁 */
-  const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null)
-  const [referenceUploadMsg, setReferenceUploadMsg] = useState('')
-  const [isReferenceUploading, setIsReferenceUploading] = useState(false)
-  const [referenceUploadConfirmOpen, setReferenceUploadConfirmOpen] = useState(false)
   const [showLookup, setShowLookup] = useState(false)
   const [lookupPhone, setLookupPhone] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
@@ -167,13 +166,6 @@ function BookingChat() {
   )
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const referenceFileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    return () => {
-      if (referenceImagePreview) URL.revokeObjectURL(referenceImagePreview)
-    }
-  }, [referenceImagePreview])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -465,37 +457,6 @@ function BookingChat() {
     }
   }
 
-  const canUploadReferenceImage = Number((worker as any)?.referral_count ?? 0) >= 10
-
-  const handleUploadReference = async () => {
-    if (!completed?.manageToken) return
-    if (!referenceFile) return
-    setReferenceUploadMsg('')
-    setIsReferenceUploading(true)
-    try {
-      const fd = new FormData()
-      fd.append('manageToken', completed.manageToken)
-      fd.append('customerPhone', customerPhone.trim())
-      fd.append('file', referenceFile)
-      const res = await fetch('/api/reference-image', { method: 'POST', body: fd })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setNoticeDialog({
-          title: '參考圖上傳失敗',
-          message: data?.error || `上傳失敗（HTTP ${res.status}）`,
-        })
-        return
-      }
-      setReferenceUploadMsg('上傳成功')
-      setReferenceFile(null)
-      setReferenceImagePreview(null)
-    } catch {
-      setNoticeDialog({ title: '連線異常', message: '網路錯誤，請稍後再試' })
-    } finally {
-      setIsReferenceUploading(false)
-    }
-  }
-
   const handleCancel = async () => {
     if (!completed?.manageToken) return
     setIsManaging(true)
@@ -608,8 +569,7 @@ function BookingChat() {
                 </span>
               </p>
               <p className="text-sm text-gray-600 leading-relaxed px-1">
-                {(worker.booking_confirmation_message ?? '').trim() ||
-                  DEFAULT_BOOKING_CONFIRMATION_MESSAGE}
+                {displayBookingConfirmationMessage(worker.booking_confirmation_message)}
               </p>
               <p className="text-sm text-gray-700">
                 <span aria-hidden>📞</span>{' '}
@@ -636,82 +596,6 @@ function BookingChat() {
               </p>
             </>
           )}
-
-          {!isCancelled && canUploadReferenceImage ? (
-            <div className="text-left rounded-xl border border-gray-100 bg-gray-50 p-3">
-              <p className="text-sm font-semibold text-gray-800">上傳參考圖（選填）</p>
-              <p className="text-xs text-gray-500 mt-1">
-                可上傳一張 jpg/png（5MB 以內），讓工作者提前評估。圖檔於<strong>預約時段結束後約 2 小時</strong>自動從伺服器刪除。
-              </p>
-              <div className="mt-2 space-y-2">
-                <input
-                  ref={referenceFileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null
-                    setReferenceFile(f)
-                    setReferenceImagePreview(f ? URL.createObjectURL(f) : null)
-                    setReferenceUploadMsg('')
-                    setReferenceUploadConfirmOpen(false)
-                  }}
-                  className="sr-only"
-                  aria-label="選擇參考圖片檔案"
-                />
-                {!referenceFile ? (
-                  <button
-                    type="button"
-                    onClick={() => referenceFileInputRef.current?.click()}
-                    className="w-full rounded-xl border-2 border-dashed border-gray-300 bg-white py-10 px-4 flex flex-col items-center justify-center gap-2 text-center hover:border-green-400 hover:bg-green-50/50 transition-colors"
-                    aria-label="開啟檔案選擇以挑選參考圖"
-                  >
-                    <span className="text-3xl" aria-hidden>
-                      📷
-                    </span>
-                    <span className="text-base font-semibold text-gray-800">上傳參考圖</span>
-                    <span className="text-xs text-gray-500">點此選擇圖片（jpg / png，5MB 以內）</span>
-                  </button>
-                ) : (
-                  <>
-                    <div className="rounded-lg border border-gray-200 bg-white p-2 overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={referenceImagePreview ?? ''}
-                        alt="參考圖預覽"
-                        className="max-h-56 w-full object-contain mx-auto"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => referenceFileInputRef.current?.click()}
-                      className="text-xs text-green-700 font-medium hover:underline w-full text-center"
-                    >
-                      重新選擇圖片
-                    </button>
-                  </>
-                )}
-                {referenceFile && !isReferenceUploading ? (
-                  <p className="text-xs text-amber-700 font-medium">
-                    該圖片只是預覽圖，還未上傳完成！
-                  </p>
-                ) : null}
-                {referenceFile ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!completed?.manageToken || !referenceFile || isReferenceUploading) return
-                      setReferenceUploadConfirmOpen(true)
-                    }}
-                    disabled={!completed?.manageToken || !referenceFile || isReferenceUploading}
-                    className="w-full px-3 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-50 hover:bg-gray-800 transition-colors"
-                  >
-                    {isReferenceUploading ? '上傳中...' : '確認送出上傳'}
-                  </button>
-                ) : null}
-                {referenceUploadMsg ? <p className="text-xs text-gray-500">{referenceUploadMsg}</p> : null}
-              </div>
-            </div>
-          ) : null}
 
           <p className="text-xs text-gray-400">如需更改或取消，可直接在下方操作。</p>
 
@@ -823,18 +707,6 @@ function BookingChat() {
             </div>
           ) : null}
         </div>
-        <AppConfirmDialog
-          open={referenceUploadConfirmOpen}
-          title="上傳參考圖"
-          message="是否確定送出上傳？"
-          confirmLabel="確定送出"
-          cancelLabel="先不要"
-          onConfirm={() => {
-            setReferenceUploadConfirmOpen(false)
-            void handleUploadReference()
-          }}
-          onCancel={() => setReferenceUploadConfirmOpen(false)}
-        />
         <AppAlertDialog
           open={noticeDialog !== null}
           title={noticeDialog?.title}
