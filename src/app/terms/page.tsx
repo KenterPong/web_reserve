@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { BRAND_FULL_NAME } from '@/lib/brand'
 
 export default function TermsPage() {
   return (
@@ -9,7 +10,7 @@ export default function TermsPage() {
       <div className="prose prose-sm text-gray-600 space-y-6">
         <section>
           <h2 className="text-base font-semibold text-gray-800 mb-2">一、服務說明</h2>
-          <p>AI 預約平台（以下稱「本服務」）提供個人工作者建立專屬 AI 預約頁面的 SaaS 服務。本服務不涉及工作者與顧客之間的交易，平台僅提供媒合工具。</p>
+          <p>{BRAND_FULL_NAME}（以下稱「本服務」）提供個人工作者建立專屬 AI 預約頁面的 SaaS 服務。本服務不涉及工作者與顧客之間的交易，平台僅提供媒合工具。</p>
         </section>
 
         <section>

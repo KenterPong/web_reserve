@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand'
 
 export const metadata: Metadata = {
   title: {
-    default: '麥不可預約表',
-    template: '%s | 麥不可預約表',
+    default: BRAND_NAME,
+    template: `%s | ${BRAND_NAME}`,
   },
-  description: '個人工作室的專屬 AI 預約頁面',
+  description: BRAND_TAGLINE,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,24 +1,24 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { validateSlug } from '@/lib/utils'
+import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand'
 
 const SITE_URL = 'https://www.mybookdate.com'
-const PLATFORM_NAME = '麥不可預約表'
 const DEMO_BOOKING_URL = 'https://lajer.mybookdate.com/booking'
 
 export const metadata: Metadata = {
-  title: '個人工作室 AI 預約頁面｜美髮、美甲、寵物美容免費試用 - 麥不可預約表',
+  title: `個人工作室 AI 預約頁面｜美髮、美甲、寵物美容免費試用 - ${BRAND_NAME}`,
   description:
     '不需要 LINE 官方帳號，3 分鐘建立你的專屬預約頁面。美髮師、美甲師、美睫師、按摩師、寵物美容師適用。顧客點連結即可預約，免費試用兩個月。',
   alternates: {
     canonical: SITE_URL,
   },
   openGraph: {
-    title: '個人工作室 AI 預約頁面｜美髮、美甲、寵物美容免費試用 - 麥不可預約表',
+    title: `個人工作室 AI 預約頁面｜美髮、美甲、寵物美容免費試用 - ${BRAND_NAME}`,
     description:
       '不需要 LINE 官方帳號，3 分鐘建立你的專屬預約頁面。美髮師、美甲師、美睫師、按摩師、寵物美容師適用。顧客點連結即可預約，免費試用兩個月。',
     url: SITE_URL,
-    siteName: PLATFORM_NAME,
+    siteName: BRAND_NAME,
     locale: 'zh_TW',
     type: 'website',
   },
@@ -63,7 +63,10 @@ export default function HomePage({ searchParams }: HomeProps) {
   return (
     <div className="min-h-screen bg-white">
       <nav className="px-6 py-4 flex justify-between items-center border-b border-gray-100 max-w-5xl mx-auto">
-        <span className="font-bold text-gray-800">{PLATFORM_NAME}</span>
+        <div className="leading-tight">
+          <span className="font-bold text-gray-800 block">{BRAND_NAME}</span>
+          <span className="text-xs text-gray-500 font-normal">{BRAND_TAGLINE}</span>
+        </div>
         <Link
           href={loginHref}
           className="bg-green-500 text-white text-sm px-4 py-2 rounded-full hover:bg-green-600 transition-colors"
@@ -144,7 +147,7 @@ export default function HomePage({ searchParams }: HomeProps) {
               常常漏接、忘記，還要一直盯手機。
             </p>
             <p>
-              {PLATFORM_NAME} 就是為了幫她們省下這些時間，
+              {BRAND_NAME} 就是為了幫她們省下這些時間，
               <br />
               讓她們可以專心做自己最擅長的事。
             </p>
