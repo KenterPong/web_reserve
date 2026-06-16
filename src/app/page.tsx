@@ -4,7 +4,7 @@ import { validateSlug } from '@/lib/utils'
 
 const SITE_URL = 'https://www.mybookdate.com'
 const PLATFORM_NAME = '麥不可預約表'
-const DEMO_BOOKING_URL = 'https://kenter.mybookdate.com/booking'
+const DEMO_BOOKING_URL = 'https://lajer.mybookdate.com/booking'
 
 export const metadata: Metadata = {
   title: '個人工作室 AI 預約頁面｜美髮、美甲、寵物美容免費試用 - 麥不可預約表',
@@ -136,8 +136,6 @@ export default function HomePage({ searchParams }: HomeProps) {
         {/* About */}
         <section className="py-12 border-t border-gray-100">
           <div className="max-w-xl mx-auto text-gray-600 text-sm leading-relaxed space-y-3">
-            <p className="font-semibold text-gray-800 text-base">Hi，我是 Kenter</p>
-            <p>我在高雄做獨立開發。</p>
             <p>
               做這個產品是因為看到身邊的朋友
               <br />
@@ -151,7 +149,7 @@ export default function HomePage({ searchParams }: HomeProps) {
               讓她們可以專心做自己最擅長的事。
             </p>
             <p>
-              有任何問題都可以直接找我 👇
+              有任何問題歡迎聯絡 👇
               <br />
               <a
                 href="mailto:support@mybookdate.com"

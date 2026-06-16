@@ -56,7 +56,7 @@ export function JoinForm({ initialSlug }: Props) {
           spellCheck={false}
           value={slug}
           onChange={(e) => setSlug(e.target.value.replace(/\s/g, '').toLowerCase())}
-          placeholder="例如：kenter"
+          placeholder="例如：lajer"
           className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
         />
         <p className="mt-2 text-xs text-gray-500">
