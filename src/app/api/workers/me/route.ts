@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getTrialStatus } from '@/lib/trial-period'
 
 // GET /api/workers/me — authenticated worker reads their own full profile
 export async function GET(req: NextRequest) {
@@ -18,5 +19,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: '找不到帳號' }, { status: 404 })
   }
 
-  return NextResponse.json({ worker })
+  const trial = getTrialStatus(
+    worker.created_at,
+    worker.subscription_status,
+    worker.is_active,
+  )
+
+  return NextResponse.json({ worker, trial })
 }

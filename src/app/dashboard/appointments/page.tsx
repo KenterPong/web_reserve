@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppAlertDialog, AppConfirmDialog } from '@/components/AppDialog'
+import { TrialAccountNotice } from '@/components/TrialAccountNotice'
 import { Appointment, Worker } from '@/types'
 import { copyTextToClipboard } from '@/lib/utils'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -382,6 +383,7 @@ export default function AppointmentsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <TrialAccountNotice />
       {/* Header */}
       <div className="bg-white shadow-sm px-4 py-4">
         <div className="flex justify-between items-center">

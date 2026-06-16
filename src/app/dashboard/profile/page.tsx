@@ -2,6 +2,7 @@
 
 import { useState, useEffect, type FormEvent } from 'react'
 import { Worker, BlockedSlot } from '@/types'
+import { TrialAccountNotice } from '@/components/TrialAccountNotice'
 import { MIN_REFERRALS_BLOCKED_SLOTS } from '@/lib/blocked-slots'
 
 const BIO_QUESTIONS = [
@@ -241,6 +242,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <TrialAccountNotice />
       {saveMsg ? (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
           <div
