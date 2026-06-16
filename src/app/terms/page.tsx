@@ -23,7 +23,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-base font-semibold text-gray-800 mb-2">三、退款政策</h2>
-          <p>已付月費如因服務品質問題申請退款，請於付款後 7 日內聯繫客服，經審核後退還剩餘天數比例費用。逾期或已使用完整月份者，不予退款。</p>
+          <p>已付月費除法律另有規定外，恕不退款。逾期或已使用完整月份者，不予退款。</p>
         </section>
 
         <section>

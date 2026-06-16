@@ -32,7 +32,10 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="text-base font-semibold text-gray-800 mb-2">四、資料刪除</h2>
-          <p>如需要求刪除個人資料，請來信 <a href="mailto:support@yourdomain.com" className="text-green-600">support@yourdomain.com</a>，我們將於 7 個工作天內完成處理。</p>
+          <p>
+            登入後可於<strong>會員管理中心（設定頁）</strong>自行刪除帳號。
+            刪除後將一併移除你的工作者資料、預約紀錄與相關設定，且無法復原。
+          </p>
         </section>
 
         <section>

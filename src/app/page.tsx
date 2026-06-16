@@ -148,16 +148,6 @@ export default function HomePage({ searchParams }: HomeProps) {
               <br />
               讓她們可以專心做自己最擅長的事。
             </p>
-            <p>
-              有任何問題歡迎聯絡 👇
-              <br />
-              <a
-                href="mailto:support@mybookdate.com"
-                className="text-green-600 hover:text-green-700"
-              >
-                📧 support@mybookdate.com
-              </a>
-            </p>
           </div>
         </section>
 
@@ -188,9 +178,6 @@ export default function HomePage({ searchParams }: HomeProps) {
         <Link href="/terms" className="hover:text-gray-600">
           服務條款
         </Link>
-        <a href="mailto:support@mybookdate.com" className="hover:text-gray-600">
-          客服聯絡
-        </a>
       </footer>
     </div>
   )

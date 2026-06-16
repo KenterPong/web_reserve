@@ -3,6 +3,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Worker, BlockedSlot } from '@/types'
 import { TrialAccountNotice } from '@/components/TrialAccountNotice'
+import { AppConfirmDialog } from '@/components/AppDialog'
 import { MIN_REFERRALS_BLOCKED_SLOTS } from '@/lib/blocked-slots'
 
 const BIO_QUESTIONS = [
@@ -46,6 +47,8 @@ export default function ProfilePage() {
   const [bsNote, setBsNote] = useState('')
   const [bsSaving, setBsSaving] = useState(false)
   const [bsMsg, setBsMsg] = useState('')
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     fetch('/api/appointments?month=2099-01') // Use appointments endpoint just to check auth
@@ -221,6 +224,23 @@ export default function ProfilePage() {
       }
     } finally {
       setIsGeneratingBookingMsg(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setIsDeleting(true)
+    try {
+      const res = await fetch('/api/workers/me', { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setSaveMsg(data.error || '刪除失敗，請稍後再試')
+        setSaveMsgType('error')
+        setDeleteConfirmOpen(false)
+        return
+      }
+      window.location.href = '/'
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -530,7 +550,38 @@ export default function ProfilePage() {
         >
           {isSaving ? '儲存中...' : '儲存設定'}
         </button>
+
+        {/* Account deletion */}
+        <section className="bg-white rounded-2xl shadow-sm p-5 space-y-3 border border-red-100">
+          <h2 className="text-sm font-semibold text-gray-800">帳號管理</h2>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            刪除帳號後，你的工作者資料、預約紀錄與相關設定將一併移除，且無法復原。
+          </p>
+          <button
+            type="button"
+            onClick={() => setDeleteConfirmOpen(true)}
+            disabled={isDeleting}
+            className="w-full border border-red-300 text-red-600 rounded-xl py-2.5 text-sm font-semibold hover:bg-red-50 disabled:opacity-50 transition-colors"
+          >
+            刪除帳號
+          </button>
+        </section>
       </div>
+
+      <AppConfirmDialog
+        open={deleteConfirmOpen}
+        title="確定要刪除帳號？"
+        message={
+          '此操作無法復原。\n\n將一併刪除你的個人頁面、預約紀錄、黑名單與其他設定。'
+        }
+        confirmLabel={isDeleting ? '刪除中…' : '確定刪除'}
+        cancelLabel="取消"
+        danger
+        onConfirm={handleDeleteAccount}
+        onCancel={() => {
+          if (!isDeleting) setDeleteConfirmOpen(false)
+        }}
+      />
     </div>
   )
 }
