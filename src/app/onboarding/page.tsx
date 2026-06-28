@@ -460,20 +460,30 @@ export default function OnboardingPage() {
                     key={day}
                     className={`py-3 first:pt-0 last:pb-0 ${s.closed ? 'opacity-60' : ''}`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => toggleDay(day)}
-                      className="flex items-center gap-1 text-sm text-gray-800 mb-2"
-                    >
-                      <span>{DAY_LABELS[day]}</span>
-                      <span
-                        className={
-                          s.closed ? 'text-gray-400' : 'text-green-600'
-                        }
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <p className="text-sm text-gray-800">
+                        {DAY_LABELS[day]}
+                        <span className={s.closed ? 'text-gray-400' : 'text-green-600'}>
+                          （{s.closed ? '休息' : '營業'}）
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={!s.closed}
+                        aria-label={`${DAY_LABELS[day]}${s.closed ? '改為營業' : '改為休息'}`}
+                        onClick={() => toggleDay(day)}
+                        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+                          s.closed ? 'bg-gray-200' : 'bg-green-500'
+                        }`}
                       >
-                        （{s.closed ? '休息' : '營業'}）
-                      </span>
-                    </button>
+                        <span
+                          className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                            s.closed ? 'translate-x-1' : 'translate-x-6'
+                          }`}
+                        />
+                      </button>
+                    </div>
                     {!s.closed ? (
                       <div className="flex items-center gap-2">
                         <input
