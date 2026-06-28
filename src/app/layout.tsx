@@ -8,6 +8,9 @@ export const metadata: Metadata = {
     template: `%s | ${BRAND_NAME}`,
   },
   description: BRAND_TAGLINE,
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

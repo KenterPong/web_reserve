@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { validateSlug } from '@/lib/utils'
 import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand'
+import { BrandLogo } from '@/components/BrandLogo'
 
 const SITE_URL = 'https://www.mybookdate.com'
 const DEMO_BOOKING_URL = 'https://lajer.mybookdate.com/booking'
@@ -63,10 +64,7 @@ export default function HomePage({ searchParams }: HomeProps) {
   return (
     <div className="min-h-screen bg-white">
       <nav className="px-6 py-4 flex justify-between items-center border-b border-gray-100 max-w-5xl mx-auto">
-        <div className="leading-tight">
-          <span className="font-bold text-gray-800 block">{BRAND_NAME}</span>
-          <span className="text-xs text-gray-500 font-normal">{BRAND_TAGLINE}</span>
-        </div>
+        <BrandLogo href="/" />
         <Link
           href={loginHref}
           className="bg-green-500 text-white text-sm px-4 py-2 rounded-full hover:bg-green-600 transition-colors"

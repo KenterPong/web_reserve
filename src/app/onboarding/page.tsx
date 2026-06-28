@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getDefaultWorkingHours } from '@/lib/default-working-hours'
 import { copyTextToClipboard } from '@/lib/utils'
+import { BrandLogo } from '@/components/BrandLogo'
 import type { WorkingHours } from '@/types'
 
 const PROFESSIONS = [
@@ -229,6 +230,9 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <div className="max-w-lg mx-auto px-4 pt-4">
+        <BrandLogo href="/" showTagline={false} size={32} />
+      </div>
       {step !== 'done' && (
         <div className="bg-white border-b border-gray-100 px-4 py-4">
           <div className="max-w-lg mx-auto flex gap-2">

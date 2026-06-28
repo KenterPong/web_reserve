@@ -1,5 +1,6 @@
 import { validateSlug } from '@/lib/utils'
 
+import { BrandLogo } from '@/components/BrandLogo'
 import { JoinForm } from './join-form'
 
 export const dynamic = 'force-dynamic'
@@ -20,6 +21,7 @@ export default function JoinPage({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 py-12">
+      <BrandLogo href="/" showTagline={false} size={40} className="mb-8" />
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#06C755]">
           <span className="text-lg font-bold text-white">LINE</span>
