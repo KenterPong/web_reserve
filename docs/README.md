@@ -22,7 +22,9 @@
 
 **實作進度：** 以 `to-do-list.md` 勾選為準；階段彙報見 **`PROGRESS.md`**。
 
-**近期實作紀要（2026-06-27）**：Onboarding 四步引導精靈規格定案（`onboarding-spec-v2.md`）；首頁截圖素材備妥（示範連結改為 `lajer.mybookdate.com/booking`）；分享連結統一為 `https://[slug].mybookdate.com/booking`。
+**近期實作紀要（2026-06-28）**：**Onboarding 四步引導**（`/onboarding`）已上線並於正式網域驗收；`workers.onboarding_completed` migration 已套用；後台分享連結統一 `https://[slug].mybookdate.com/booking`。
+
+**近期實作紀要（2026-06-27）**：Onboarding 規格定案（`onboarding-spec-v2.md`）；首頁截圖素材備妥（示範連結 `lajer.mybookdate.com/booking`）；docs 整併至 `docs/` 目錄。
 
 **近期實作紀要（2026-05-06）**：`workers.booking_confirmation_message`；後台 **`/dashboard/profile`** 編輯與 **`POST /api/generate-booking-message`**（Claude）；預約完成頁「**預約申請已送出**」與自訂／預設提醒文字（**正式網域已驗**）。**後台改期**：`PATCH /api/appointments/[id]` 可改 **`appointment_date`／`appointment_time`**（與 `status` 擇一）；公開 **`GET /api/appointments?excludeAppointmentId=`** 供改期選時段排除自己。**`/auth/callback`**（頁面）：單次換票、`window.location` 讀 OAuth 參數、處理 LINE `error`。**`/dashboard/insights`** 與 **`GET /api/insights`** 已有 MVP 頁與 API（指標持續擴充見 `to-do-list`）。
 

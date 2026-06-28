@@ -1,18 +1,34 @@
 # 任務階段進度報告
 
-**更新日：** 2026-06-27（與 `README.md`、`to-do-list.md` 同步盤點）
+**更新日：** 2026-06-28（與 `README.md`、`to-do-list.md` 同步盤點）
 **對照文件：** `to-do-list.md`（實作狀態以此檔勾選為準）、`README.md`（架構與商業說明）
 
 ---
 
-## 本階段進行中（2026-06-27）
+## 本階段進行中（2026-06-28）
 
 | 區塊 | 說明 |
 |------|------|
-| **Onboarding 引導流程** | 規格定案（`onboarding-spec-v2.md`）；判斷條件改為 `onboarding_completed`；所有資料 Step 4 一次寫入；分享連結統一 `/booking`；**優先於首頁截圖區塊** |
-| **首頁截圖區塊** | 三張截圖素材已備妥（顧客對話、完成頁、後台日曆）；待 Onboarding 完成後再實作（規格見 `homepage-redesign-v2.md`） |
-| **示範連結** | 已改為 `lajer.mybookdate.com/booking`（kenter 那個不再使用） |
-| **文件整併** | `onboarding-spec.md` v1 已廢止（以 v2 為準）；README／to-do-list／v2 導向邏輯、分享連結、試用期已對齊 |
+| **首頁截圖區塊** | 三張截圖素材已備妥；Onboarding 已驗收完成，**下一項**為首頁新增展示區塊（規格見 `homepage-redesign-v2.md`） |
+| **示範連結** | `lajer.mybookdate.com/booking` |
+
+---
+
+## 本階段已完成（2026-06-28）
+
+| 區塊 | 說明 |
+|------|------|
+| **Onboarding 引導流程** | `/onboarding` 四步 + 完成頁已上線；`onboarding_completed` 欄位與 migration 已套用正式庫；新用戶 LINE 登入 → onboarding → 後台；分享連結統一 `/booking`；**正式網域驗收通過**（規格 `onboarding-spec-v2.md`） |
+| **文件整併** | v1 廢止、README／to-do／v2 已對齊 |
+
+---
+
+## 本階段進行中（2026-06-27，已結案）
+
+| 區塊 | 說明 |
+|------|------|
+| ~~**Onboarding 引導流程**~~ | → 見上方「2026-06-28 已完成」 |
+| ~~**首頁截圖區塊**~~ | 待 Onboarding 完成 → **現可開始** |
 
 ---
 
@@ -34,6 +50,7 @@
 | **封鎖時段**（推薦 ≥15） | 表 **`blocked_slots`**（`supabase/migrations/20260207120000_blocked_slots.sql`）；**`/dashboard/profile#blocked-slots`** 月曆列表／新增／刪除；**`GET/POST /api/blocked-slots`**、**`DELETE /api/blocked-slots/[id]`**；正式庫 **RLS + `REVOKE anon/authenticated` + `GRANT` service_role** 與黑名單表策略一致；**預約頁**與**後台改期彈窗**皆合併 `blockedTimes` 為不可選；**2026-05-02 正式環境已驗**。 |
 | **Lookup** | 僅未來 `confirmed`、欄位僅日期／時間、**10/h IP**。 |
 | **Booking UI** | 內嵌聯絡表單、完成頁標題「**預約申請已送出**」、**自訂／預設提醒文字**（`booking_confirmation_message`）、名稱與時間、**聯絡電話**、截圖提示；「查詢我的預約」；**worker 為 null 時不存取欄位**（修復白屏）；時段選擇器合併 **`bookedTimes` + `blockedTimes`**。**正式網域完成頁已驗**；**封鎖時段與改期選時已驗（2026-05-02）**。 |
+| **Onboarding**（2026-06-28） | **`/onboarding`** 四步精靈 + 完成頁；`workers.onboarding_completed`；callback／dashboard 導向；`generate-bio` 之 `save: false`；`GET /api/workers/check-slug`；分享連結 **`/booking`**。**正式網域驗收通過**。 |
 | **共用** | `src/lib/datetime-taipei.ts`、`src/lib/rate-limit.ts`（MVP 程序內計數；上線可換 Redis）。 |
 | **文件** | `to-do-list.md` 與 `README` 結構對齊；**已刪除**過時／重複／敏感檔案（見下）。 |
 

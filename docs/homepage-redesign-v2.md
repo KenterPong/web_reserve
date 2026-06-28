@@ -164,7 +164,7 @@ mybookdate.com/for/pet-grooming    → 寵物美容師專屬說明頁
 
 ## 改版優先順序
 
-> ⚠️ **Onboarding 引導流程（`onboarding-spec-v2.md`）為新用戶轉換阻塞項，優先於截圖區塊。截圖區塊待 Onboarding 上線後再實作。**
+> ✅ **Onboarding 引導流程**（`onboarding-spec-v2.md`）已上線並正式驗收（2026-06-28）。**下一項：首頁截圖區塊**（規格見下方 §截圖區塊）。
 
 1. SEO 標題 + Meta Description（10分鐘）
 2. 第一屏主標題 + 職業 icon + CTA 按鈕（最重要）

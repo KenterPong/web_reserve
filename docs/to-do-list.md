@@ -2,18 +2,21 @@
 
 > **進度彙報：** 見同目錄 `PROGRESS.md`（與本清單同步維護）。
 
+### 今日進度（2026-06-28）
+
+- [x] **Onboarding 引導流程**：已上線並於正式網域（`www.mybookdate.com`）驗收通過（commits `4025685`～`1d0a918`；規格 `onboarding-spec-v2.md`）
+  - [x] migration：`workers.onboarding_completed`（正式庫已執行；`supabase/migrations/20260627120000_workers_onboarding_completed.sql`）
+  - [x] `/onboarding` 四步精靈 + 完成頁（Step 4 營業時間：兩行排版 + 開關切換）
+  - [x] `/auth/callback`：`GET /api/workers/me` 依 `onboarding_completed` 導向
+  - [x] `/dashboard/*`：`dashboard/layout` 未完成時 redirect `/onboarding`
+  - [x] slug reserved 驗證 + `GET /api/workers/check-slug`
+  - [x] `POST /api/generate-bio` 支援 `save: false`
+  - [x] 後台分享 `shareUrl` → `https://[slug].mybookdate.com/booking`
+
 ### 今日進度（2026-06-27）
 
 - [x] **首頁截圖素材**：三張截圖已提供（顧客對話、完成頁、後台日曆）；示範連結改為 `lajer.mybookdate.com/booking`
-- [ ] **首頁截圖區塊**：新增於三個特點卡片下方、關於我們上方（規格見 `homepage-redesign-v2.md`）
-- [ ] **Onboarding 引導流程**（**優先於首頁截圖**；規格 `onboarding-spec-v2.md`）
-  - [ ] migration：`workers.onboarding_completed`（同步 `supabase/schema.sql`）
-  - [ ] `/onboarding` 四步精靈 + 完成頁
-  - [ ] `/auth/callback`：`GET /api/workers/me` 依 `onboarding_completed` 導向
-  - [ ] `/dashboard/*`：`onboarding_completed = false` 時 redirect `/onboarding`
-  - [ ] slug reserved 驗證（前後端 + middleware `RESERVED_PATH_SEGMENTS` 含 `onboarding`）
-  - [ ] `POST /api/generate-bio` onboarding 模式（請求帶 `save: false`，Step 4 前不寫 DB）
-  - [ ] 後台分享 `shareUrl` 改為 `https://[slug].mybookdate.com/booking`（與 v2 統一）
+- [ ] **首頁截圖區塊**：新增於三個特點卡片下方、關於我們上方（規格見 `homepage-redesign-v2.md`；**Onboarding 已完成，可開始實作**）
 
 ### 今日進度（2026-05-02）
 
@@ -182,7 +185,7 @@
   - `referral_count ≥ 30` → 文字隱藏（全部解鎖）
 
 **分享彈窗（新增推薦區塊）**
-- [x] 現有區塊（頂部）：顧客預約連結 + 複製按鈕 + QR Code（連結格式改 `/booking` 見 Onboarding 子任務）
+- [x] 現有區塊（頂部）：顧客預約連結 + 複製按鈕 + QR Code（連結格式 `https://[slug].mybookdate.com/booking`，**2026-06-28 驗收**）
 - [x] 新增區塊（QR Code 下方，加分隔線）：
   - 標題：「推薦設計師加入」
   - 說明文字：「把連結分享給其他設計師，他們加入後自動計入你的推薦紀錄」
