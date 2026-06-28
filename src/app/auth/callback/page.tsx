@@ -97,7 +97,19 @@ function CallbackHandler() {
           } catch {
             // ignore
           }
-          window.location.assign('/dashboard')
+          fetch('/api/workers/me')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+              if (!aliveRef.current) return
+              const done = Boolean(data?.worker?.onboarding_completed)
+              window.location.assign(
+                done ? '/dashboard/appointments' : '/onboarding',
+              )
+            })
+            .catch(() => {
+              if (!aliveRef.current) return
+              window.location.assign('/onboarding')
+            })
         } else {
           setIsError(true)
           try {

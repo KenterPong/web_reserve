@@ -1,6 +1,24 @@
 ## Web Reserve To-do List（路線 A）
 
-> **進度彙報：** 見根目錄 `PROGRESS.md`（與本清單同步維護）。
+> **進度彙報：** 見同目錄 `PROGRESS.md`（與本清單同步維護）。
+
+### 今日進度（2026-06-27）
+
+- [x] **首頁截圖素材**：三張截圖已提供（顧客對話、完成頁、後台日曆）；示範連結改為 `lajer.mybookdate.com/booking`
+- [ ] **首頁截圖區塊**：新增於三個特點卡片下方、關於我們上方（規格見 `homepage-redesign-v2.md`）
+- [ ] **Onboarding 引導流程**（**優先於首頁截圖**；規格 `onboarding-spec-v2.md`）
+  - [ ] migration：`workers.onboarding_completed`（同步 `supabase/schema.sql`）
+  - [ ] `/onboarding` 四步精靈 + 完成頁
+  - [ ] `/auth/callback`：`GET /api/workers/me` 依 `onboarding_completed` 導向
+  - [ ] `/dashboard/*`：`onboarding_completed = false` 時 redirect `/onboarding`
+  - [ ] slug reserved 驗證（前後端 + middleware `RESERVED_PATH_SEGMENTS` 含 `onboarding`）
+  - [ ] `POST /api/generate-bio` onboarding 模式（請求帶 `save: false`，Step 4 前不寫 DB）
+  - [ ] 後台分享 `shareUrl` 改為 `https://[slug].mybookdate.com/booking`（與 v2 統一）
+
+### 今日進度（2026-05-02）
+
+- [x] **封鎖時段（推薦 15 人）**：`blocked_slots`、RLS／`GRANT`／`REVOKE` 於正式庫就緒；設定頁 `#blocked-slots`、`GET/POST/DELETE /api/blocked-slots`、公開 `blockedTimes`、預約／顧客改期／後台 `PATCH` 後端檢查、`POST /api/chat` 納入封鎖
+- [x] **後台改期 UI**：行事曆「改期」彈窗合併 `blockedTimes`（與 `bookedTimes` 一併不可選）；**正式環境已驗**
 
 ### 上線前五項（美髮師正式使用前，2026-05-02 盤點）
 
@@ -150,7 +168,7 @@
 - [x] 🏠 首頁 icon：點擊回到行事曆（預約管理；Dashboard 根路徑已導向 `/dashboard/appointments`）
 - [x] 解鎖 icon × 4：依推薦人數依序排列（黑名單→參考圖→封鎖時段→簡訊通知）
   - **未解鎖**：icon 灰色半透明；點擊展開功能說明 + 複製推薦連結按鈕
-  - **已解鎖**：icon 全彩；點擊展開功能入口（封鎖時段／簡訊仍為佔位或開發中說明，見各功能段落）
+  - **已解鎖**：icon 全彩；點擊展開功能入口（封鎖時段已連結 **`/dashboard/profile#blocked-slots`**；簡訊仍為佔位說明）
 - [x] icon 樣式細節由工程師決定，方向確認即可
 - [x] DB：`workers.referral_count` 欄位供前端讀取解鎖狀態（`GET /api/workers/me`；舊庫可跑 migration 補欄位）
 
@@ -164,7 +182,7 @@
   - `referral_count ≥ 30` → 文字隱藏（全部解鎖）
 
 **分享彈窗（新增推薦區塊）**
-- [x] 現有區塊（頂部）：顧客預約連結 + 複製按鈕 + QR Code
+- [x] 現有區塊（頂部）：顧客預約連結 + 複製按鈕 + QR Code（連結格式改 `/booking` 見 Onboarding 子任務）
 - [x] 新增區塊（QR Code 下方，加分隔線）：
   - 標題：「推薦設計師加入」
   - 說明文字：「把連結分享給其他設計師，他們加入後自動計入你的推薦紀錄」
@@ -222,6 +240,7 @@
 > 目標：讓工作者「依賴」平台，加深護城河  
 > **現況**：已有路由 **`/dashboard/insights`** 與 **`GET /api/insights`**（MVP 資料）；下列為待補齊／優化之產品項（與 `README`／`PROGRESS` 對照）。
 
+- [x] **試用／平台方監看（營運）**：**Supabase Dashboard → Reports**（自訂 SQL）觀測全庫——例如每日新增預約、每工作者預約量、狀態分佈、`chat_sessions` 活躍等；與 **`/dashboard/insights`**（單一工作者、cookie）並用即可撐試用期。**說明與時機**見 `README.md`「營運觀測（試用期）」。
 - [ ] **數據洞察頁面**（產品完整度）：主要指標與互動依下方第一～三級持續實作（見 `src/app/dashboard/insights/page.tsx`）
 
 **第一級（立刻有感，優先實作）**
@@ -245,7 +264,7 @@
 > 新增 API：`GET /api/insights?workerId=xxx&period=30d`
 
 
-### 封鎖時段（推薦 15 人解鎖）
+### 封鎖時段（推薦 15 人解鎖）— **已驗收（2026-05-02）**
 > 單日內特定時段禁止預約，不影響整體營業時間設定
 
 **DB**
@@ -278,6 +297,7 @@
 **預約邏輯整合**
 - [x] `POST /api/appointments`、顧客 `PATCH /api/appointments/manage`（改期）、後台 `PATCH /api/appointments/[id]` 皆檢查 `blocked_slots`
 - [x] 公開 `GET /api/appointments?workerId=&date=` 回傳 `blockedTimes`；預約頁時段選擇器與已預約一併 disabled
+- [x] 後台行事曆「改期」彈窗：讀取同一公開 API 之 `blockedTimes`，與 `bookedTimes` 合併為不可選時段（正式環境已驗）
 - [x] `POST /api/chat` guardrail 與 system prompt 納入封鎖時段
 
 ### Storage（參考圖，解鎖功能）
@@ -290,7 +310,7 @@
 - [x] `POST /api/appointments`：5 次／小時（識別依據：IP + `worker_id`）— **MVP：程序內記憶體**
 - [x] `GET /api/workers`：100 次／小時（識別依據：IP）— **MVP：程序內記憶體**
 - [x] `GET /api/appointments/lookup`：10 次／小時（識別依據：IP）— **MVP：程序內記憶體**
-- [ ] 正式環境建議：Upstash Redis 等分散式計數（取代單機記憶體）
+- [ ] **收費或公眾流量顯著成長前**：將 **`src/lib/rate-limit.ts`** 之 `checkRateLimit` 改接 **Upstash Redis**（或 Vercel KV 等分散式計數），避免 Vercel **多 instance** 各自計數、實際上限過寬；於 Vercel／`.env.local` 設定廠商所要求之 **REST URL／Token**（實作後可補 `.env.example` 註解）。**試用／人工轉帳、流量小階段**維持程序內記憶體可接受——與 `README.md`「Rate Limit 策略」一致。
 
 ### 營運必備頁面（上線前）
 - [x] `/privacy` 隱私權政策（含資料範圍、保存 180 天、刪除方式）— **頁面已存在，法務文案仍建議審閱**

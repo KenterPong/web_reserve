@@ -31,6 +31,7 @@ CREATE TABLE workers (
   slot_duration            INTEGER NOT NULL DEFAULT 60,
   referral_count           INTEGER NOT NULL DEFAULT 0,
   referred_by              UUID REFERENCES workers(id),
+  onboarding_completed     BOOLEAN NOT NULL DEFAULT false,
   subscription_status      TEXT NOT NULL DEFAULT 'inactive'
                            CHECK (subscription_status IN ('active', 'inactive')),
   is_active                BOOLEAN NOT NULL DEFAULT true,

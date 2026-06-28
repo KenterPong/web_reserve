@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { isReservedWorkerSlug } from '@/lib/reserved-slugs'
 import { validateSlug, validatePhone, getClientIp } from '@/lib/utils'
 import { checkRateLimit } from '@/lib/rate-limit'
 
@@ -55,29 +56,33 @@ export async function PATCH(req: NextRequest) {
     slot_duration,
     contact_phone,
     booking_confirmation_message,
+    onboarding_completed,
   } = body
 
-  const updates: Record<string, unknown> = {}
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
   if (slug !== undefined) {
-    if (!validateSlug(slug)) {
+    const normalized = String(slug).trim().toLowerCase()
+    if (!validateSlug(normalized)) {
       return NextResponse.json(
         { error: 'slug 只能使用小寫英數字，長度 3～30 字元' },
         { status: 400 },
       )
     }
-    // Check uniqueness (excluding current worker)
+    if (isReservedWorkerSlug(normalized)) {
+      return NextResponse.json({ error: '此名稱不可使用' }, { status: 400 })
+    }
     const { data: existing } = await supabaseAdmin
       .from('workers')
       .select('id')
-      .eq('slug', slug)
+      .eq('slug', normalized)
       .neq('id', workerId)
-      .single()
+      .maybeSingle()
 
     if (existing) {
       return NextResponse.json({ error: '此 slug 已被使用' }, { status: 409 })
     }
-    updates.slug = slug
+    updates.slug = normalized
   }
 
   if (business_name !== undefined) updates.business_name = business_name
@@ -102,6 +107,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: '預約完成提醒文字請勿超過 5000 字元' }, { status: 400 })
     }
     updates.booking_confirmation_message = raw.length ? raw : null
+  }
+  if (onboarding_completed === true) {
+    updates.onboarding_completed = true
   }
 
   const { data, error } = await supabaseAdmin

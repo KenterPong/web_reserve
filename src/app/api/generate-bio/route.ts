@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '未登入' }, { status: 401 })
   }
 
-  const { answers } = await req.json()
+  const body = await req.json()
+  const { answers, save = true } = body
 
   if (!answers || typeof answers !== 'object') {
     return NextResponse.json({ error: '缺少問卷答案' }, { status: 400 })
@@ -16,11 +17,12 @@ export async function POST(req: NextRequest) {
 
   const bio = await generateBio(answers)
 
-  // Save bio and answers to the worker record
-  await supabaseAdmin
-    .from('workers')
-    .update({ bio, bio_answers: answers })
-    .eq('id', workerId)
+  if (save !== false) {
+    await supabaseAdmin
+      .from('workers')
+      .update({ bio, bio_answers: answers, updated_at: new Date().toISOString() })
+      .eq('id', workerId)
+  }
 
   return NextResponse.json({ bio })
 }

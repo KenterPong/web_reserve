@@ -314,9 +314,9 @@ export default function AppointmentsPage() {
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN
   const shareUrl =
     mySlug && rootDomain
-      ? `https://${mySlug}.${rootDomain}`
+      ? `https://${mySlug}.${rootDomain}/booking`
       : mySlug
-        ? `${window.location.protocol}//${mySlug}.${window.location.host.replace(/^www\./, '')}`
+        ? `${window.location.protocol}//${mySlug}.${window.location.host.replace(/^www\./, '')}/booking`
         : ''
 
   const referralUrl =

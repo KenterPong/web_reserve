@@ -32,6 +32,7 @@ export interface Worker {
   slot_duration: number
   referral_count: number
   referred_by?: string | null
+  onboarding_completed: boolean
   subscription_status: 'active' | 'inactive'
   is_active: boolean
   created_at: string

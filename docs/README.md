@@ -1,5 +1,19 @@
 # AI 預約平台 - 架構說明
 
+## 文件地圖
+
+| 文件 | 定位 |
+|------|------|
+| `README.md` | 架構、商業模式、DB、API（本文件） |
+| `onboarding-spec-v2.md` | Onboarding 唯一有效規格 |
+| `onboarding-spec.md` | v1 已廢止（stub，僅轉址 v2） |
+| `homepage-redesign-v2.md` | www 首頁改版規格 |
+| `to-do-list.md` | 工程任務與驗收 |
+| `PROGRESS.md` | 階段進度彙報 |
+
+---
+
+
 ## 專案概述
 
 個人工作者的專屬 AI 預約頁面平台，不限職業類型。
@@ -7,6 +21,8 @@
 每位工作者擁有獨立子網域個人介紹頁（如 `jessica.yourdomain.com`），頁面由 AI 自動生成，並內建 AI 預約對話機器人。顧客不需安裝任何 App，點連結即可完成預約。工作者透過 LINE 登入後台查看預約日曆。
 
 **實作進度：** 以 `to-do-list.md` 勾選為準；階段彙報見 **`PROGRESS.md`**。
+
+**近期實作紀要（2026-06-27）**：Onboarding 四步引導精靈規格定案（`onboarding-spec-v2.md`）；首頁截圖素材備妥（示範連結改為 `lajer.mybookdate.com/booking`）；分享連結統一為 `https://[slug].mybookdate.com/booking`。
 
 **近期實作紀要（2026-05-06）**：`workers.booking_confirmation_message`；後台 **`/dashboard/profile`** 編輯與 **`POST /api/generate-booking-message`**（Claude）；預約完成頁「**預約申請已送出**」與自訂／預設提醒文字（**正式網域已驗**）。**後台改期**：`PATCH /api/appointments/[id]` 可改 **`appointment_date`／`appointment_time`**（與 `status` 擇一）；公開 **`GET /api/appointments?excludeAppointmentId=`** 供改期選時段排除自己。**`/auth/callback`**（頁面）：單次換票、`window.location` 讀 OAuth 參數、處理 LINE `error`。**`/dashboard/insights`** 與 **`GET /api/insights`** 已有 MVP 頁與 API（指標持續擴充見 `to-do-list`）。
 
@@ -48,6 +64,19 @@
 | 毛利空間 | 約 NT$90～170／會員／月 |
 
 > **成本假設**：每位工作者每月約 20～50 次對話，每次對話約 5～10 輪，以 claude-sonnet 定價估算。若對話量超出預期，優先考慮截斷對話歷史長度或快取 system prompt。
+
+### 試用期與帳號停用
+
+| 階段 | 天數 | 說明 |
+|------|------|------|
+| 免費試用 | 60 天 | 從 `workers.created_at` 起算 |
+| 寬限期 | +3 天 | 到期後仍可使用，後台顯示付款提醒 |
+| 停用 | 第 64 天起 | `is_active = false`，子網域預約頁暫停服務 |
+
+- **提醒機制：** 後台 `TrialAccountNotice` 元件（到期前 3 天、寬限期間顯示）
+- **停用排程：** cron `deactivate-expired-trials` 自動執行
+- **恢復：** 人工收款確認後將 `subscription_status = 'active'`
+- **實作依據：** `src/lib/trial-period.ts`（天數以此檔為準，文件不另列數字）
 
 
 
@@ -109,16 +138,18 @@ ADD COLUMN IF NOT EXISTS booking_confirmation_message TEXT;
 | 15～29 | 目前 X 人　還差 Y 人可解鎖 💬 簡訊通知功能 |
 | ≥30 | 隱藏（全部解鎖） |
 
+**分享連結統一原則：** 顧客預約連結一律 `https://[slug].mybookdate.com/booking`（直接進預約頁）；推薦連結 `https://www.mybookdate.com/[slug]`（主站路徑）。後台「分享」彈窗、QR Code 與 onboarding 完成頁皆以此為準。
+
 **分享彈窗結構：**
 ```
 【顧客預約區塊】
 你的專屬連結
-https://[slug].mybookdate.com
+https://[slug].mybookdate.com/booking
 [ 複製連結 ]
 
 或讓客戶掃描 QR Code
 [ QR Code 圖片 ]
-客戶掃描後會直接開啟你的子網域預約頁
+客戶掃描後會直接開啟你的預約頁
 
 ────────────────
 【推薦設計師區塊（新增）】
@@ -142,8 +173,17 @@ https://www.mybookdate.com/[slug]
 |---------|------|------|
 | 推薦 5 人 | 黑名單機制 | 封鎖特定電話，自動拒絕預約。定位為「降低騷擾」，換號可繞過，UI 需說明清楚避免期待落差 |
 | 推薦 10 人 | 參考圖上傳 | 顧客預約時可上傳一張參考圖（髮型、紋身等），讓工作者提前評估；限一張，存 Supabase Storage |
-| 推薦 15 人 | 封鎖時段 | 單日內特定時段禁止預約，不影響整體營業時間；資料表 `blocked_slots` 已建，後台／API／預約整合見 `to-do-list.md` |
+| 推薦 15 人 | 封鎖時段 | 單日內特定時段禁止預約，不影響整體營業時間；**已實作並於正式環境驗收**（見下方摘要） |
 | 推薦 30 人 | 簡訊確認通知 | 預約完成後自動發簡訊給顧客（Every8d API）。顧客留電話時需勾選「同意接收預約通知簡訊」 |
+
+**封鎖時段（實作摘要，推薦滿 15 人）：**
+
+- **資料表** `blocked_slots`（migration：`supabase/migrations/20260207120000_blocked_slots.sql`；`schema.sql` 同步）；正式庫須 **`GRANT ALL` 給 `service_role`** 並 **`REVOKE anon, authenticated`**（與黑名單表相同策略）。
+- **設定**：`/dashboard/profile#blocked-slots`（依月份列表、新增、刪除）。
+- **API**：`GET/POST /api/blocked-slots`、`DELETE /api/blocked-slots/[id]`（登入 cookie + 推薦門檻）。
+- **預約**：公開 `GET /api/appointments?workerId=&date=` 回傳 `blockedTimes`；顧客預約頁時段與 **`blockedTimes`／`bookedTimes`** 一併不可選；`POST /api/appointments`、顧客 **`PATCH /api/appointments/manage`**、後台 **`PATCH /api/appointments/[id]`** 後端皆擋封鎖重疊。
+- **後台改期**：行事曆「改期」彈窗已合併 `blockedTimes`（與預約頁一致）。
+- **AI**：`POST /api/chat` 之 system prompt 與 guardrail 已納入封鎖區間。
 
 > **推薦成功定義**：被推薦方完成平台註冊（LINE 登入）即算，不要求付費。
 > **防刷機制**：以 LINE user ID 為唯一識別，同一 LINE 帳號只能被計算一次。
@@ -207,15 +247,19 @@ jessica.yourdomain.com
 
 ### AI 自動生成個人介紹
 
-工作者註冊後填寫五個問題，Claude 自動產出個人介紹頁文案：
+Onboarding Step 1 + Step 2 合併提供五個欄位給 `POST /api/generate-bio`：
 
-1. 你的名字／稱呼？
-2. 你的職業／專長？
-3. 你有幾年經驗？
-4. 你的服務特色是什麼？
-5. 你的工作地點在哪裡？
+| 欄位 | 來源 |
+|------|------|
+| `name` | Step 1 工作室名稱（`business_name`） |
+| `profession` | Step 1 職業類型 |
+| `experience` | Step 2 年資 |
+| `features` | Step 2 服務特色 |
+| `location` | Step 2 地點 |
 
-工作者可直接使用或微調後發布，並可在後台隨時重新生成。
+> **注意：** Onboarding 期間 `POST /api/generate-bio` 須帶 `save: false`，不提前寫入 DB；所有資料於 Step 4「完成設定」後一次寫入。
+> 後台 `/dashboard/profile` 可隨時重新生成（預設仍寫入 DB）。
+> 詳見 `onboarding-spec-v2.md`。
 
 ---
 
@@ -239,13 +283,14 @@ jessica.yourdomain.com
 
 ```
 src/
-├── middleware.ts                 # 子網域 rewrite；主站推薦路徑 rewrite /join；保護 /dashboard；callback host 對齊
+├── middleware.ts                 # 子網域 rewrite；主站推薦 rewrite /join；保護 /dashboard；onboarding 未完成擋後台；callback host 對齊
 ├── app/
 │   ├── page.tsx                  # 平台首頁（www）
 │   ├── join/                     # 推薦代碼確認頁（→ referral-intent cookie → line-bootstrap）
 │   ├── privacy/、terms/          # 隱私權、服務條款
 │   ├── worker-profile/           # 個人介紹（middleware rewrite）
 │   ├── booking/                  # AI 預約（rewrite；內含時段選擇、查詢預約、聯絡表單）
+│   ├── onboarding/               # 新用戶四步引導精靈（onboarding_completed = false 時導向）
 │   ├── dashboard/                # 後台（appointments 日曆、profile、insights MVP）
 │   ├── api/auth/line-bootstrap、referral-intent、auth/login、auth/callback # LINE OAuth（Set-Cookie 僅 Route Handler）
 │   └── api/
@@ -259,14 +304,14 @@ src/
 │   ├── supabase.ts、supabase-admin.ts、claude.ts、utils.ts
 │   ├── datetime-taipei.ts        # 台北日曆／星期（預約與 chat 共用）
 │   ├── rate-limit.ts             # MVP 程序內計數（上線可換 Redis）
+│   ├── trial-period.ts           # 試用期計算（60 天 + 3 天寬限）
 │   ├── line-oauth-state.ts       # LINE state：cookie 跨子網域（.lvh.me 等）
 │   ├── referral-intent-cookie.ts # 推薦 slug httpOnly（進 LINE 前）
 │   └── line-login-oauth.ts       # authorize URL、state 編碼、in-app UA 偵測
 ├── types/index.ts
 supabase/schema.sql               # PostgreSQL schema（路線 A：REVOKE anon 等）
-supabase/migrations/              # 可重複執行補欄位（例：referral_count／referred_by）
-to-do-list.md                     # 實作勾選清單
-PROGRESS.md                       # 階段進度彙報（與 to-do 對照）
+supabase/migrations/              # 可重複執行補欄位（例：onboarding_completed、referral_count）
+docs/                             # 本目錄：README、spec、to-do-list、PROGRESS
 ```
 
 ---
@@ -325,6 +370,7 @@ CREATE TABLE workers (
   slot_duration       INTEGER NOT NULL DEFAULT 60,
   referral_count      INTEGER NOT NULL DEFAULT 0,
   referred_by         UUID REFERENCES workers(id),
+  onboarding_completed BOOLEAN NOT NULL DEFAULT false,
   subscription_status TEXT NOT NULL DEFAULT 'inactive'
                       CHECK (subscription_status IN ('active', 'inactive')),
   is_active           BOOLEAN NOT NULL DEFAULT true,
@@ -553,7 +599,17 @@ const recentMessages = session.messages.slice(-20)
 | `GET /api/workers` | 100 次／小時 | IP |
 | `GET /api/appointments/lookup` | 10 次／小時 | IP |
 
-**MVP 現況：** 以上已於 Route Handler 以**程序內記憶體**計數實作（`src/lib/rate-limit.ts`）；正式環境仍建議改 **Upstash Redis** 等分散式計數，避免多 instance 各自計數。
+**MVP 現況：** 以上已於 Route Handler 以**程序內記憶體**計數實作（`src/lib/rate-limit.ts`）。在 **Vercel 多 instance** 下，各實例記憶體不共享，實際上限會比帳面數字寬鬆。
+
+- **試用／人工轉帳、流量小**：維持程序內計數即可，風險可接受。  
+- **收費後或公眾流量明顯成長前**：建議改 **Upstash Redis**（或 Vercel KV 等）做分散式計數，並在專案環境變數設定 REST URL／Token；實作時於 `checkRateLimit` 內「有 Redis 設定則走 Redis、否則 fallback 記憶體」利本機開發。（待辦見 `to-do-list.md`「Rate Limit」一節。）
+
+### 營運觀測（試用期）
+
+平台方在試用期要看「預約與工作者有沒有動起來」，不必依賴 Vercel 流量報表（那是網頁／效能維度），建議並用：
+
+- **Supabase Dashboard → Reports**：以自訂 SQL 監看全庫（例如每日新增預約、每位 `worker_id` 預約量、**`appointments` 狀態分佈**、**`chat_sessions`** 對話活躍度等）。可視需要再加「本月回頭率」等欄位，與下方 **`/dashboard/insights`** 指標對齊。  
+- **後台 `GET /api/insights`／`/dashboard/insights`**：登入工作者本人之 **cookie** 範圍統計（本月總量、新客／回頭、狀態、最忙時段、沉睡顧客等 MVP），給美髮師正向回饋。
 
 ### 其他防護
 
@@ -725,23 +781,28 @@ Cloudflare 會產生一個臨時的 `*.trycloudflare.com` 網址，支援 https�
 ## 核心流程
 
 ### 工作者上線流程
-1. 進入 `www.yourdomain.com` → 點「立即加入」
+1. 進入 `www.mybookdate.com` → 點「免費開始使用」
 2. LINE 登入（首次登入自動建立 workers 資料）
-3. 填寫五個問題 → Claude 自動生成個人介紹頁
-4. 設定 slug（子網域名稱）、營業時間
-5. 取得專屬連結：`jessica.yourdomain.com`
+3. 進入 `/onboarding` 四步引導精靈（`onboarding_completed = false` 時自動導向）：
+   - Step 1：填寫工作室名稱 + 選擇職業類型
+   - Step 2：回答三個問題，Claude 自動生成個人介紹頁
+   - Step 3：設定專屬連結名稱（slug）
+   - Step 4：設定營業時間
+4. 完成後一次寫入 DB（`slug`、`bio`、`working_hours`、`onboarding_completed = true`）
+5. 完成頁顯示專屬預約連結：`https://[slug].mybookdate.com/booking`
 6. 分享連結給顧客（IG bio、LINE 個人帳號、名片 QR code 等）
 7. 完成繳費確認（MVP：LINE Pay 轉帳，人工開通 `subscription_status = 'active'`）
 
+> **Onboarding 規格詳見 `onboarding-spec-v2.md`**
+
 ### 顧客預約流程
-1. 點開工作者分享的連結（`jessica.yourdomain.com`）
-2. 看到個人介紹頁，點「立即預約」
-3. 跳到 `jessica.yourdomain.com/booking`
-4. AI 對話框開啟，顧客輸入想預約的時間
-5. 後端查詢資料庫確認時段（不依賴模型推測）
-6. 時段確認 → 顧客留下姓名＋電話
-7. 預約以 unique constraint 防併發寫入
-8. 顧客看到確認畫面
+1. 點開工作者分享的連結（建議 `jessica.yourdomain.com/booking`，直接進預約；亦可先開 `jessica.yourdomain.com` 介紹頁再點「立即預約」）
+2. 進入 `jessica.yourdomain.com/booking`
+3. AI 對話框開啟，顧客輸入想預約的時間
+4. 後端查詢資料庫確認時段（不依賴模型推測）
+5. 時段確認 → 顧客留下姓名＋電話
+6. 預約以 unique constraint 防併發寫入
+7. 顧客看到確認畫面
 
 ### 工作者後台流程
 1. 進入 `www.yourdomain.com/dashboard` → LINE 登入
@@ -761,7 +822,7 @@ middleware 以 `host` header 判斷，對內使用 `rewrite` 而非 redirect，�
 `SUPABASE_SERVICE_ROLE_KEY` 僅能出現在伺服器端（Route Handler、Server Actions），絕不可使用 `NEXT_PUBLIC_*` 前綴。
 
 ### auth/callback 分工
-- `app/auth/callback/page.tsx`：處理使用者可見的導向與 UI 狀態
+- `app/auth/callback/page.tsx`：處理使用者可見的導向與 UI 狀態；換票成功後 **`GET /api/workers/me`**，依 `onboarding_completed` 導向 `/onboarding` 或 `/dashboard/appointments`
 - `app/api/auth/callback/route.ts`：換票、寫入 Cookie、首次登入建立 workers 資料
 
 ### 對話歷史截斷
@@ -954,14 +1015,14 @@ GET /api/appointments/lookup?phone=xxx&workerId=xxx
 - 不需登入，公開端點
 - Rate limit：10 次／小時（依 IP），防止電話號碼掃描
 
-## 解鎖功能（推薦機制觸發，不在 MVP 範圍）
+## 解鎖功能（推薦機制；簡訊仍為後續項目）
 
 | 推薦人數 | 功能 | 額外注意 |
 |---------|------|---------|
 | 5 人 | 黑名單機制 | UI 需說明「換號可繞過」，定位為降低騷擾 |
 | 10 人 | 參考圖上傳（限一張） | Storage 私有 bucket，signed URL，限 jpg／png／5MB |
-| 15 人 | 封鎖時段 | 單日特定時段禁止預約；`blocked_slots` 表；UI／API 見 `to-do-list.md` |
-| 30 人 | 簡訊確認通知（Every8d） | 顧客需勾選同意接收簡訊 |
+| 15 人 | 封鎖時段 | **已上線**：`blocked_slots`、設定頁、公開時段 API、預約／改期／AI；詳見上文「封鎖時段（實作摘要）」 |
+| 30 人 | 簡訊確認通知（Every8d） | 顧客需勾選同意接收簡訊（尚未實作發送） |
 
 ---
 

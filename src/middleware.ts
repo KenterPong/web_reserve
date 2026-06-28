@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { validateSlug } from '@/lib/utils'
+import { RESERVED_WORKER_SLUGS } from '@/lib/reserved-slugs'
 
 const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? '').toLowerCase()
 
 /** 主網域單一路徑段若與 App 路由同名，不可當成推薦 slug（避免誤轉） */
-const RESERVED_PATH_SEGMENTS = new Set([
-  'auth',
-  'booking',
-  'dashboard',
-  'join',
-  'privacy',
-  'terms',
-  'worker-profile',
-])
+const RESERVED_PATH_SEGMENTS = RESERVED_WORKER_SLUGS
 
 function isMainMarketingHost(hostname: string): boolean {
   if (ROOT_DOMAIN) {
@@ -69,6 +62,14 @@ export function middleware(req: NextRequest) {
 
   // Protect /dashboard pages — API routes validate their own cookies
   if (pathname.startsWith('/dashboard')) {
+    const workerId = req.cookies.get('worker_id')?.value
+    if (!workerId) {
+      return NextResponse.redirect(new URL('/api/auth/line-bootstrap', req.url))
+    }
+  }
+
+  // /onboarding requires login
+  if (pathname.startsWith('/onboarding')) {
     const workerId = req.cookies.get('worker_id')?.value
     if (!workerId) {
       return NextResponse.redirect(new URL('/api/auth/line-bootstrap', req.url))
