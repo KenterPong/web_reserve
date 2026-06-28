@@ -452,44 +452,46 @@ export default function OnboardingPage() {
               <h1 className="text-xl font-bold text-gray-800">你什麼時候上班？🗓️</h1>
               <p className="text-sm text-gray-500 mt-1">顧客只能預約你的營業時間內的時段</p>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
+            <div className="bg-white rounded-2xl shadow-sm p-4 space-y-2.5">
               {DAY_KEYS.map((day) => {
                 const s = workingHours[day]
                 return (
                   <div
                     key={day}
-                    className={`flex flex-wrap items-center gap-2 ${s.closed ? 'opacity-50' : ''}`}
+                    className={`grid grid-cols-[auto_1fr] items-center gap-x-2 ${s.closed ? 'opacity-50' : ''}`}
                   >
-                    <span className="text-sm text-gray-600 w-10">{DAY_LABELS[day]}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleDay(day)}
-                      className={`text-xs px-2 py-1 rounded-full border ${
-                        s.closed
-                          ? 'border-gray-200 text-gray-400'
-                          : 'border-green-400 text-green-600 bg-green-50'
-                      }`}
-                    >
-                      {s.closed ? '休息' : '營業'}
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-sm text-gray-600 w-9">{DAY_LABELS[day]}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${
+                          s.closed
+                            ? 'border-gray-200 text-gray-400'
+                            : 'border-green-400 text-green-600 bg-green-50'
+                        }`}
+                      >
+                        {s.closed ? '休息' : '營業'}
+                      </button>
+                    </div>
                     {!s.closed ? (
-                      <>
+                      <div className="flex items-center justify-end gap-0.5 min-w-0">
                         <input
                           type="time"
                           value={s.start}
                           onChange={(e) => updateHours(day, 'start', e.target.value)}
-                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm"
+                          className="min-w-0 w-[5.6rem] max-w-[42%] border border-gray-200 rounded-lg px-1 py-1.5 text-xs leading-none focus:outline-none focus:border-green-400"
                         />
-                        <span className="text-gray-400 text-xs">～</span>
+                        <span className="text-gray-400 text-xs shrink-0 px-0.5">～</span>
                         <input
                           type="time"
                           value={s.end}
                           onChange={(e) => updateHours(day, 'end', e.target.value)}
-                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm"
+                          className="min-w-0 w-[5.6rem] max-w-[42%] border border-gray-200 rounded-lg px-1 py-1.5 text-xs leading-none focus:outline-none focus:border-green-400"
                         />
-                      </>
+                      </div>
                     ) : (
-                      <span className="text-xs text-gray-400">休息</span>
+                      <span className="text-xs text-gray-400 text-right">休息</span>
                     )}
                   </div>
                 )
