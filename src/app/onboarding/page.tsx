@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getDefaultWorkingHours } from '@/lib/default-working-hours'
-import { trackOnboardingStep } from '@/lib/onboarding-analytics'
+import { clearOnboardingSession, trackOnboardingStep } from '@/lib/onboarding-analytics'
 import { copyTextToClipboard } from '@/lib/utils'
 import { BrandLogo } from '@/components/BrandLogo'
 import type { WorkingHours } from '@/types'
@@ -97,7 +97,7 @@ export default function OnboardingPage() {
   }, [])
 
   useEffect(() => {
-    if (loading || step !== 1 || step1Tracked.current) return
+    if (loading || step !== 1 || step1Tracked.current || !lineUserId) return
     step1Tracked.current = true
     trackOnboardingStep('step1_viewed', { lineUserId })
   }, [loading, step, lineUserId])
@@ -210,6 +210,7 @@ export default function OnboardingPage() {
         return
       }
       trackOnboardingStep('step4_completed', { lineUserId })
+      if (lineUserId) clearOnboardingSession(lineUserId)
       setStep('done')
     } catch {
       setSubmitError('連線失敗，請稍後再試')

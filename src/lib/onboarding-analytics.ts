@@ -7,38 +7,45 @@ export const ONBOARDING_STEPS = [
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]
 
-const SESSION_STORAGE_KEY = 'onboarding_session_id'
+function sessionStorageKey(lineUserId: string): string {
+  return `onboarding_session_${lineUserId}`
+}
 
-export function getOrCreateOnboardingSessionId(): string {
+export function getOrCreateOnboardingSessionId(lineUserId: string): string {
   if (typeof window === 'undefined') return ''
 
-  const existing = sessionStorage.getItem(SESSION_STORAGE_KEY)
+  const key = sessionStorageKey(lineUserId)
+  const existing = sessionStorage.getItem(key)
   if (existing) return existing
 
   const sessionId = `onboarding_${Date.now()}_${crypto.randomUUID()}`
-  sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId)
+  sessionStorage.setItem(key, sessionId)
   return sessionId
+}
+
+export function clearOnboardingSession(lineUserId: string): void {
+  if (typeof window === 'undefined') return
+  sessionStorage.removeItem(sessionStorageKey(lineUserId))
 }
 
 export function trackOnboardingStep(
   step: OnboardingStep,
-  options?: { lineUserId?: string | null },
+  options: { lineUserId: string | null | undefined },
 ): void {
-  const sessionId = getOrCreateOnboardingSessionId()
+  const lineUserId = options.lineUserId?.trim()
+  if (!lineUserId) return
+
+  const sessionId = getOrCreateOnboardingSessionId(lineUserId)
   if (!sessionId) return
-
-  const body: { session_id: string; step: OnboardingStep; line_user_id?: string } = {
-    session_id: sessionId,
-    step,
-  }
-
-  const lineUserId = options?.lineUserId?.trim()
-  if (lineUserId) body.line_user_id = lineUserId
 
   void fetch('/api/onboarding-events', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      session_id: sessionId,
+      step,
+      line_user_id: lineUserId,
+    }),
   }).catch(() => {
     // 埋點失敗不影響 onboarding 流程
   })
