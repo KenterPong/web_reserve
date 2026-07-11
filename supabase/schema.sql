@@ -129,6 +129,22 @@ CREATE INDEX idx_blocked_slots_worker_date ON blocked_slots(worker_id, blocked_d
 ALTER TABLE blocked_slots ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
+-- Onboarding 漏斗埋點
+-- =============================================
+CREATE TABLE onboarding_events (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id    TEXT NOT NULL,
+  step          TEXT NOT NULL,
+  line_user_id  TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_onboarding_events_session ON onboarding_events(session_id);
+CREATE INDEX idx_onboarding_events_step ON onboarding_events(step);
+
+ALTER TABLE onboarding_events ENABLE ROW LEVEL SECURITY;
+
+-- =============================================
 -- updated_at 自動更新 trigger
 -- =============================================
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -166,8 +182,11 @@ REVOKE ALL ON TABLE appointments  FROM anon, authenticated;
 REVOKE ALL ON TABLE chat_sessions FROM anon, authenticated;
 REVOKE ALL ON TABLE blacklist FROM anon, authenticated;
 REVOKE ALL ON TABLE blocked_slots FROM anon, authenticated;
+REVOKE ALL ON TABLE onboarding_events FROM anon, authenticated;
 
 GRANT ALL ON TABLE public.blacklist TO service_role;
 GRANT ALL ON TABLE public.blacklist TO postgres;
 GRANT ALL ON TABLE public.blocked_slots TO service_role;
 GRANT ALL ON TABLE public.blocked_slots TO postgres;
+GRANT ALL ON TABLE public.onboarding_events TO service_role;
+GRANT ALL ON TABLE public.onboarding_events TO postgres;

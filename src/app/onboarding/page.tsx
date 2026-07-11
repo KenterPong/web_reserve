@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getDefaultWorkingHours } from '@/lib/default-working-hours'
+import { trackOnboardingStep } from '@/lib/onboarding-analytics'
 import { copyTextToClipboard } from '@/lib/utils'
 import { BrandLogo } from '@/components/BrandLogo'
 import type { WorkingHours } from '@/types'
@@ -52,6 +53,9 @@ export default function OnboardingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [copyMsg, setCopyMsg] = useState('')
+  const [lineUserId, setLineUserId] = useState<string | null>(null)
+  const step1Tracked = useRef(false)
+  const step3Tracked = useRef(false)
 
   const professionLabel = useMemo(() => {
     if (profession === '其他') return professionOther.trim()
@@ -87,9 +91,22 @@ export default function OnboardingPage() {
         if (ans.features) setFeatures(ans.features)
         if (ans.location) setLocation(ans.location)
         if (w.bio) setBio(w.bio)
+        if (w.line_user_id) setLineUserId(w.line_user_id)
       })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (loading || step !== 1 || step1Tracked.current) return
+    step1Tracked.current = true
+    trackOnboardingStep('step1_viewed', { lineUserId })
+  }, [loading, step, lineUserId])
+
+  useEffect(() => {
+    if (step !== 3 || slugStatus !== 'available' || step3Tracked.current) return
+    step3Tracked.current = true
+    trackOnboardingStep('step3_slug_selected', { lineUserId })
+  }, [step, slugStatus, lineUserId])
 
   useEffect(() => {
     if (step !== 3) return
@@ -143,6 +160,7 @@ export default function OnboardingPage() {
       const data = await res.json()
       if (res.ok && typeof data.bio === 'string') {
         setBio(data.bio)
+        trackOnboardingStep('step2_bio_generated', { lineUserId })
       } else {
         setGenerateError(data.error ?? '生成失敗，請重試')
       }
@@ -191,6 +209,7 @@ export default function OnboardingPage() {
         setSubmitError(data.error ?? '儲存失敗，請稍後再試')
         return
       }
+      trackOnboardingStep('step4_completed', { lineUserId })
       setStep('done')
     } catch {
       setSubmitError('連線失敗，請稍後再試')
