@@ -4,6 +4,7 @@
 
 ### 今日進度（2026-06-28）
 
+- [x] **品牌 Logo 與 Favicon**：`public/logo.svg`、`src/app/favicon.ico`；共用元件 `BrandLogo`；首頁導覽、`/onboarding`、`/join` 已整合（commit `145b26e`）
 - [x] **Onboarding 引導流程**：已上線並於正式網域（`www.mybookdate.com`）驗收通過（commits `4025685`～`1d0a918`；規格 `onboarding-spec-v2.md`）
   - [x] migration：`workers.onboarding_completed`（正式庫已執行；`supabase/migrations/20260627120000_workers_onboarding_completed.sql`）
   - [x] `/onboarding` 四步精靈 + 完成頁（Step 4 營業時間：兩行排版 + 開關切換）

@@ -22,7 +22,7 @@
 
 **實作進度：** 以 `to-do-list.md` 勾選為準；階段彙報見 **`PROGRESS.md`**。
 
-**近期實作紀要（2026-06-28）**：**Onboarding 四步引導**（`/onboarding`）已上線並於正式網域驗收；`workers.onboarding_completed` migration 已套用；後台分享連結統一 `https://[slug].mybookdate.com/booking`。
+**近期實作紀要（2026-06-28）**：**品牌 Logo／Favicon**（`public/logo.svg`、`src/app/favicon.ico`、`BrandLogo` 元件；首頁、`/onboarding`、`/join`）。**Onboarding 四步引導**（`/onboarding`）已上線並於正式網域驗收；`workers.onboarding_completed` migration 已套用；後台分享連結統一 `https://[slug].mybookdate.com/booking`。
 
 **近期實作紀要（2026-06-27）**：Onboarding 規格定案（`onboarding-spec-v2.md`）；首頁截圖素材備妥（示範連結 `lajer.mybookdate.com/booking`）；docs 整併至 `docs/` 目錄。
 
@@ -287,6 +287,7 @@ Onboarding Step 1 + Step 2 合併提供五個欄位給 `POST /api/generate-bio`�
 src/
 ├── middleware.ts                 # 子網域 rewrite；主站推薦 rewrite /join；保護 /dashboard；onboarding 未完成擋後台；callback host 對齊
 ├── app/
+│   ├── favicon.ico               # 全站 favicon（Next.js App Router）
 │   ├── page.tsx                  # 平台首頁（www）
 │   ├── join/                     # 推薦代碼確認頁（→ referral-intent cookie → line-bootstrap）
 │   ├── privacy/、terms/          # 隱私權、服務條款
@@ -299,10 +300,13 @@ src/
 │       ├── chat/                 # Claude 對話 + session／rate limit
 │       ├── appointments/       # GET（月曆／公開 booked + excludeToken／excludeApptId）、POST、lookup、manage、[id] PATCH（狀態或改期）
 │       ├── insights/           # GET（cookie）預約統計 MVP
-│       ├── workers/、workers/me/
+│       ├── workers/、workers/me/、workers/check-slug/
 │       ├── generate-bio/、generate-booking-message/  # 預約完成提醒文字（Claude）
 │       └── auth/callback/        # 換票、UPSERT workers、寫入 cookie
+├── components/
+│   └── BrandLogo.tsx             # Logo + 品牌名稱（首頁、onboarding、join）
 ├── lib/
+│   ├── brand.ts                  # BRAND_NAME、BRAND_TAGLINE
 │   ├── supabase.ts、supabase-admin.ts、claude.ts、utils.ts
 │   ├── datetime-taipei.ts        # 台北日曆／星期（預約與 chat 共用）
 │   ├── rate-limit.ts             # MVP 程序內計數（上線可換 Redis）
@@ -311,6 +315,8 @@ src/
 │   ├── referral-intent-cookie.ts # 推薦 slug httpOnly（進 LINE 前）
 │   └── line-login-oauth.ts       # authorize URL、state 編碼、in-app UA 偵測
 ├── types/index.ts
+public/
+├── logo.svg                      # 品牌 Logo（靜態資源）
 supabase/schema.sql               # PostgreSQL schema（路線 A：REVOKE anon 等）
 supabase/migrations/              # 可重複執行補欄位（例：onboarding_completed、referral_count）
 docs/                             # 本目錄：README、spec、to-do-list、PROGRESS

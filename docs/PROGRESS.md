@@ -18,6 +18,7 @@
 
 | 區塊 | 說明 |
 |------|------|
+| **品牌 Logo 與 Favicon** | `public/logo.svg`、全站 `favicon.ico`（`src/app/favicon.ico`）；`BrandLogo` 元件套用於首頁導覽、`/onboarding`、`/join`（commit `145b26e`） |
 | **Onboarding 引導流程** | `/onboarding` 四步 + 完成頁已上線；`onboarding_completed` 欄位與 migration 已套用正式庫；新用戶 LINE 登入 → onboarding → 後台；分享連結統一 `/booking`；**正式網域驗收通過**（規格 `onboarding-spec-v2.md`） |
 | **文件整併** | v1 廢止、README／to-do／v2 已對齊 |
 
@@ -51,6 +52,7 @@
 | **Lookup** | 僅未來 `confirmed`、欄位僅日期／時間、**10/h IP**。 |
 | **Booking UI** | 內嵌聯絡表單、完成頁標題「**預約申請已送出**」、**自訂／預設提醒文字**（`booking_confirmation_message`）、名稱與時間、**聯絡電話**、截圖提示；「查詢我的預約」；**worker 為 null 時不存取欄位**（修復白屏）；時段選擇器合併 **`bookedTimes` + `blockedTimes`**。**正式網域完成頁已驗**；**封鎖時段與改期選時已驗（2026-05-02）**。 |
 | **Onboarding**（2026-06-28） | **`/onboarding`** 四步精靈 + 完成頁；`workers.onboarding_completed`；callback／dashboard 導向；`generate-bio` 之 `save: false`；`GET /api/workers/check-slug`；分享連結 **`/booking`**。**正式網域驗收通過**。 |
+| **品牌**（2026-06-28） | **`public/logo.svg`**、**`favicon.ico`**；**`BrandLogo`** 元件（首頁、`/onboarding`、`/join`）。 |
 | **共用** | `src/lib/datetime-taipei.ts`、`src/lib/rate-limit.ts`（MVP 程序內計數；上線可換 Redis）。 |
 | **文件** | `to-do-list.md` 與 `README` 結構對齊；**已刪除**過時／重複／敏感檔案（見下）。 |
 

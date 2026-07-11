@@ -70,9 +70,9 @@ REVOKE ALL ON TABLE onboarding_events FROM anon, authenticated;
 | Step 4 完成，`onboarding_completed = true` 寫入當下 | `step4_completed` |
 
 **session_id 規則：**
-- Onboarding 頁面載入時產生一組 `onboarding_${Date.now()}_${nanoid()}`
-- 存於該次 onboarding 的前端 state 或 `sessionStorage`
-- 四個步驟共用同一組 `session_id`，以便之後用 SQL 依 session 串接每個人的路徑
+- 每次 onboarding 依 `line_user_id` 產生一組 `onboarding_${Date.now()}_${crypto.randomUUID()}`
+- 存於 `sessionStorage`（key：`onboarding_session_{line_user_id}`），同一次流程四步共用
+- 完成 onboarding 後清除 sessionStorage，避免與下次測試或不同帳號混淆
 
 ### B4. 查詢方式（Kenter 自行於 Supabase Dashboard 使用）
 
@@ -93,13 +93,66 @@ GROUP BY step
 ORDER BY step;
 ```
 
+**各 session 實際路徑（看流失模式）：**
+```sql
+SELECT
+  session_id,
+  array_agg(step ORDER BY created_at) AS steps,
+  MIN(created_at) AS started_at
+FROM onboarding_events
+WHERE created_at >= NOW() - INTERVAL '7 days'
+GROUP BY session_id
+ORDER BY started_at DESC;
+```
+
+---
+
+## C. 每週例行查詢（上線後）
+
+**首次查詢：** 上線後 **3–5 天**（建議 2026-07-16 週四）跑第一次，確認有足夠樣本。
+**之後頻率：** 每週一次（建議固定週四），在 Supabase SQL Editor 執行下方步驟。
+
+### C1. Onboarding 漏斗（Supabase）
+
+依序執行 B4 的「近 7 天漏斗」與「各 session 實際路徑」兩段 SQL。
+
+**解讀重點：**
+
+| 現象 | 可能原因 |
+|------|---------|
+| step1 多、step2 少 | 多數在 Step 1 就離開，或 Step 2 未生成簡介 |
+| step2 多、step3 少 | slug 選擇環節有摩擦 |
+| step3 多、step4 少 | 營業時間設定或最後提交有問題 |
+| 只有 `{step1_viewed}` | 中途離開（進 Step 2 但未生成簡介也會是這種 pattern） |
+
+**注意：** 漏斗顯示某步驟流失高，不代表一定要改 onboarding。先確認流量是否為精準受眾（SEO 可能帶來同業好奇，而非真正想用的美髮師／美甲師）。若流失率高，優先問「這些流量是不是本來就不是目標用戶」，再決定是否調整流程。
+
+### C2. GSC 成效（Google Search Console）
+
+路徑：Search Console → **效能** → 日期範圍選「過去 28 天」或「過去 7 天」。
+
+**解讀重點：**
+
+| 現象 | 可能原因 | 應對方向 |
+|------|---------|---------|
+| 曝光高、點擊率低 | title / description 不夠吸引人 | 調整首頁 SEO 文案 |
+| 曝光本身就低 | 排名不如預期 | 重新評估 SEO 優先度（主驗證路徑仍是 IG cold outreach） |
+
+兩種情況應對完全不同；可把 GSC 截圖與 B4 SQL 結果一併留存，供週會或決策參考。
+
+### C3. 每週交付物（可選）
+
+1. GSC 成效報表截圖
+2. 近 7 天 funnel SQL 結果
+3. 各 session 路徑 SQL 結果（樣本少時可略）
+
 ---
 
 ## 驗收標準
 
-- [ ] `sitemap.xml` 可於 `https://www.mybookdate.com/sitemap.xml` 正常存取
-- [ ] GSC 網域驗證完成，sitemap 送出無錯誤
-- [ ] `onboarding_events` 資料表已建立，正式庫已執行 migration，RLS/REVOKE 與現行表一致
-- [ ] `POST /api/onboarding-events` 可正常寫入，格式錯誤時回傳 4xx
-- [ ] Onboarding 四步驟皆已埋點，測試一次完整流程後可於 Supabase 看到 4 筆對應 `session_id` 的紀錄
-- [ ] 中途離開測試（例如只完成到 Step 2 就關閉頁面）後，資料庫應可看到 `step1_viewed`、`step2_bio_generated`，但無 `step3`、`step4` 記錄
+- [x] `sitemap.xml` 可於 `https://www.mybookdate.com/sitemap.xml` 正常存取
+- [x] GSC 網域驗證完成，sitemap 送出無錯誤
+- [x] `onboarding_events` 資料表已建立，正式庫已執行 migration，RLS/REVOKE 與現行表一致
+- [x] `POST /api/onboarding-events` 可正常寫入，格式錯誤時回傳 4xx
+- [x] Onboarding 四步驟皆已埋點，測試一次完整流程後可於 Supabase 看到 4 筆對應 `session_id` 的紀錄
+- [x] 中途離開測試（Step 1 填完 → 進 Step 2 未填就關閉）後，資料庫可看到該 session 僅有 `step1_viewed`
